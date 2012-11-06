@@ -61,12 +61,6 @@ gboolean irc_callback(GIOChannel *source, GIOCondition cond, gpointer ptr)
 	while ('\n' != buf[numbytes-1]);
 	printf("%s", buf);
 
-	if (strstr(buf,"PING") == buf)
-	{
-		memcpy(buf,"PONG",4);
-		write(s, buf, numbytes);
-	}
-
 	Handle<Script> *script = (Handle<Script>*)ptr;
 
 	// Run the script to get the result.

@@ -1,6 +1,7 @@
 var msgre = /:(\S+) PRIVMSG (\S+) :(.+)/i
 var joinre = /:(\S+) JOIN :(\S+)/i
 var cmdre = /%(\S+)( +\S.+)?/i
+var pingre = /PING( .+)/i
 
 var lines = x.split("\n")
 
@@ -28,8 +29,15 @@ function f(b){
 	var retval=''
 	for (i in b) {
 		var msg = msgre.exec(b[i])
-		if (msg)
-			retval = msgevent(msg[1],msg[2],msg[3]) 
+		if (msg) {
+			retval += msgevent(msg[1],msg[2],msg[3])
+			continue
+		}
+		var ping = pingre.exec(b[i])
+		if (ping) {
+			retval += 'PONG' + ping[1] + '\n'
+			continue
+		}
 	}
 	return retval
 }
