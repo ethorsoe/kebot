@@ -13,11 +13,12 @@
 #include <glib.h>
 #include <v8.h>
 #include <cstdio>
+#include <cstdlib>
 #include <sys/types.h>
 #include <unistd.h>
 #include <pthread.h>
 
-#define MAXDATASIZE 1000
+#define MAXDATASIZE 40960
 #define SOURCESIZE 409600
 
 using namespace v8;
@@ -51,8 +52,13 @@ int writes(int fd, const char *a) {
 
 gboolean irc_callback(GIOChannel *source, GIOCondition cond, gpointer ptr)
 {
-	int numbytes = read(s,buf,MAXDATASIZE-1);
-	buf[numbytes]='\0';
+	int numbytes=0;
+	do {
+		if (MAXDATASIZE <= numbytes + 1) exit(1);
+		numbytes += read(s,buf+numbytes,MAXDATASIZE-1-numbytes);
+		buf[numbytes]='\0';
+	}
+	while ('\n' != buf[numbytes-1]);
 	printf("%s", buf);
 
 	if (strstr(buf,"PING") == buf)
