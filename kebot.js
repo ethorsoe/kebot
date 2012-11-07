@@ -3,6 +3,7 @@ var joinre = /:(\S+) JOIN :(\S+)/i
 var cmdre = /%(\S+)( +\S.+)?/i
 var pingre = /PING( .+)/i
 var saytoken = /(\S+) (.*)/
+var hostmaskre = /([^!@: ]+)!([^!@: ]+)@([^!@: ]+)/
 
 var lines = x.split("\n")
 
@@ -37,6 +38,14 @@ function msgevent(who,whom,message){
 	return ""
 }
 
+function joinevent(who, where) {
+	if (getDBValue("op." +where+ ":" + who) == 'yes') {
+		var hostmask = hostmaskre.exec(who)
+		return "MODE " + where + " +o " + hostmask[1] + "\n"
+	}
+	return ''
+}
+
 function f(b){
 	var retval=''
 	for (i in b) {
@@ -50,6 +59,12 @@ function f(b){
 			retval += 'PONG' + ping[1] + '\n'
 			continue
 		}
+		var join = joinre.exec(b[i])
+		if (join) {
+			retval += joinevent(join[1],join[2])
+			continue
+		}
+		log(retval)
 	}
 	return retval
 }
