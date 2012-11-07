@@ -2,6 +2,7 @@ var msgre = /:(\S+) PRIVMSG (\S+) :(.+)/i
 var joinre = /:(\S+) JOIN :(\S+)/i
 var cmdre = /%(\S+)( +\S.+)?/i
 var pingre = /PING( .+)/i
+var saytoken = /(\S+) (.*)/
 
 var lines = x.split("\n")
 
@@ -16,6 +17,10 @@ function cmdevent(command, parameters){
 	log(command)
 	if ("join" == command)
 		return 'JOIN ' + parameters + '\n';
+	if ("say" == command) {
+		var targets = saytoken.exec(parameters)
+		return "PRIVMSG "+targets[1]+" :"+ targets[2] +"\n"
+	}
 	return "";
 }
 
