@@ -5,6 +5,13 @@ var pingre = /PING( .+)/i
 
 var lines = x.split("\n")
 
+function getDBValue(s) {
+	var esc = s.replace(/'/g,"''")
+	var input = "PRAGMA SQLITE_TEMP_STORE=3; select data from t1 where key == '" + esc + "';"
+	var retval=cppGetDBValue(input);
+	return retval
+}
+
 function cmdevent(command, parameters){
 	log(command)
 	if ("join" == command)
@@ -16,7 +23,7 @@ function msgevent(who,whom,message){
 	log(message)
 	log(who)
 	log(whom)
-	if (who == 'Ke!jkarlson@lyta.org.aalto.fi') {
+	if (getDBValue("master:" + who) == 'yes') {
 		var cmd = cmdre.exec(message)
 		if (cmd) {
 			return cmdevent(cmd[1],cmd[2])

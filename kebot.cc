@@ -17,6 +17,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <sqlite3.h>
 
 #define MAXDATASIZE 40960
 #define SOURCESIZE 409600
@@ -24,6 +25,7 @@
 using namespace v8;
 
 char buf[MAXDATASIZE];
+sqlite3 *db;
 
 Handle<Value> XGetter(Local<String> property, 
 	const AccessorInfo& info) {
@@ -42,6 +44,29 @@ static Handle<Value> LogCallback(const Arguments& args) {
 	printf("LOG: %s\n", *value);
 
 	return v8::Undefined();
+}
+
+static int sqlite_callback(void *target, int argc, char **argv, char **azColName){
+	if (1 <= argc) {
+		strcpy((char*)target, argv[0]);
+	}
+	return 0;
+}
+
+static Handle<Value> getDBValue(const Arguments& args) {
+	char result[1024];
+	char *errMsg;
+	result[0]=0;
+	if (args.Length() < 1) return v8::Undefined();
+	HandleScope scope;
+	Handle<Value> arg = args[0];
+	String::Utf8Value value(arg);
+	int err = sqlite3_exec(db, *value, sqlite_callback, result, &errMsg);
+	printf("bb\n");
+	if (err)
+		printf("Error %s in SQL\n", errMsg);
+
+	return String::New(result);
 }
 
 int s;
@@ -120,6 +145,7 @@ int main()
 	// Create a new context.
 	Handle<ObjectTemplate> global = ObjectTemplate::New();
 	global->Set(String::New("log"), FunctionTemplate::New(LogCallback));
+	global->Set(String::New("cppGetDBValue"), FunctionTemplate::New(getDBValue));
 	global->SetAccessor(String::New("x"), XGetter, XSetter);
 	Persistent<Context> context = Context::New(NULL, global);
 
@@ -136,12 +162,19 @@ int main()
 	//We dont need this anymore
 	freeaddrinfo(servinfo);
 
+	int ret = sqlite3_open("ircnet.db", &db);
+	if( ret ){
+		fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
+		sqlite3_close(db);
+		exit(1);
+	}
+
 	GMainLoop *main_loop = g_main_loop_new(NULL, FALSE);
 	GIOChannel *ircchan = g_io_channel_unix_new(s);
 	g_io_add_watch(ircchan, G_IO_IN, irc_callback, &script);
 	
 #ifndef NOSECCOMP
-	int ret = seccomp_init(SCMP_ACT_KILL);
+	ret = seccomp_init(SCMP_ACT_KILL);
 	if (ret < 0)
 		printf("Error from seccomp_init\n");
 	ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(read), 0);
@@ -178,6 +211,16 @@ int main()
 	if (!ret)
 		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(prctl), 0);
 	if (!ret)
+		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(lseek), 0);
+	if (!ret)
+		ret = seccomp_rule_add(SCMP_ACT_ERRNO(5), SCMP_SYS(access), 0);
+	if (!ret)
+		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(fcntl), 0);
+	if (!ret)
+		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(fsync), 0);
+	if (!ret)
+		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(close), 0);
+	if (!ret)
 		ret = seccomp_load();
 	if (ret)
 		printf("error setting seccomp\n");
@@ -190,5 +233,6 @@ int main()
 	
 	// Dispose the persistent context.
 	context.Dispose();
+	sqlite3_close(db);
 }
 
