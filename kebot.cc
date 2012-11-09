@@ -62,7 +62,6 @@ static Handle<Value> getDBValue(const Arguments& args) {
 	Handle<Value> arg = args[0];
 	String::Utf8Value value(arg);
 	int err = sqlite3_exec(db, *value, sqlite_callback, result, &errMsg);
-	printf("bb\n");
 	if (err)
 		printf("Error %s in SQL\n", errMsg);
 
@@ -94,7 +93,6 @@ gboolean irc_callback(GIOChannel *source, GIOCondition cond, gpointer ptr)
 	// Convert the result to an ASCII string and print it.
 	String::AsciiValue ascii(result);
 	printf("ascii %s\n", *ascii);
-	writes(2, *ascii);
 	writes(s, *ascii);
 
 	return TRUE;
