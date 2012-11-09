@@ -50,7 +50,8 @@ function cmdevent(command, parameters){
 }
 
 function msgevent(who,whom,message){
-	if (getDBValue("master", who) == 'yes') {
+	var hostmask = hostmaskre.exec(who)
+	if (getDBValue("master", ["ident", hostmask[2]], ["host"].concat(getHosts(hostmask[3]))) == 'yes') {
 		var cmd = cmdre.exec(message)
 		if (cmd) {
 			return cmdevent(cmd[1],cmd[2])
