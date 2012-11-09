@@ -41,7 +41,6 @@ function getDBValue() {
 }
 
 function cmdevent(command, parameters){
-	log(command)
 	if ("join" == command)
 		return 'JOIN ' + parameters + '\n';
 	if ("say" == command) {
@@ -52,9 +51,6 @@ function cmdevent(command, parameters){
 }
 
 function msgevent(who,whom,message){
-	log(message)
-	log(who)
-	log(whom)
 	if (getDBValue("master", who) == 'yes') {
 		var cmd = cmdre.exec(message)
 		if (cmd) {
@@ -90,7 +86,6 @@ function f(b){
 			retval += joinevent(join[1],join[2])
 			continue
 		}
-		log(retval)
 	}
 	return retval
 }
