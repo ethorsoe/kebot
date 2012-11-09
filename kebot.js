@@ -7,11 +7,37 @@ var hostmaskre = /([^!@: ]+)!([^!@: ]+)@([^!@: ]+)/
 
 var lines = x.split("\n")
 
-function getDBValue(s) {
-	var esc = s.replace(/'/g,"''")
-	var input = "PRAGMA SQLITE_TEMP_STORE=3; select data from t1 where key == '" + esc + "';"
-	var retval=cppGetDBValue(input);
-	return retval
+function getDBValue() {
+	var input = "PRAGMA SQLITE_TEMP_STORE=3; select data from '" + arguments[0] + "' where "
+	var inputs = new Array(arguments.length - 1)
+
+	function escapes(s) {
+		return s.replace(/'/g,"''")
+	}
+
+	for (i=1; i < arguments.length; i++) {
+		var key = " key == "
+		var thisarg=arguments[i]
+		if (Array.isArray(thisarg)) {
+			if (thisarg.length > 2) {
+				var thisarray = new Array(thisarg.length-1)
+				for (j=1;j<thisarg.length;j++) {
+					thisarray[j-1]=escapes(thisarg[j])
+				}
+				print(i,j)
+				inputs[i-1] = "'" + thisarg[0] + "' IN (" + thisarray.join("','") + "')"
+			}
+			else {
+				inputs[i-1] = "'" + thisarg[0] + "' == '" + escapes(thisarg[1]) + "'"
+			}
+		}
+		else {
+			inputs[i-1] = "key == '" + escapes(thisarg) + "'"
+		}
+	}
+	input += inputs.join(" AND ")
+	input += ";"
+	return cppGetDBValue(input);
 }
 
 function cmdevent(command, parameters){
@@ -29,7 +55,7 @@ function msgevent(who,whom,message){
 	log(message)
 	log(who)
 	log(whom)
-	if (getDBValue("master:" + who) == 'yes') {
+	if (getDBValue("master", who) == 'yes') {
 		var cmd = cmdre.exec(message)
 		if (cmd) {
 			return cmdevent(cmd[1],cmd[2])
@@ -39,7 +65,7 @@ function msgevent(who,whom,message){
 }
 
 function joinevent(who, where) {
-	if (getDBValue("op." +where+ ":" + who) == 'yes') {
+	if (getDBValue("op."+where, who) == 'yes') {
 		var hostmask = hostmaskre.exec(who)
 		return "MODE " + where + " +o " + hostmask[1] + "\n"
 	}
