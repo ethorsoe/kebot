@@ -92,7 +92,7 @@ gboolean irc_callback(GIOChannel *source, GIOCondition cond, gpointer ptr)
 
 	// Convert the result to an ASCII string and print it.
 	String::AsciiValue ascii(result);
-	printf("ascii %s\n", *ascii);
+	printf("ascii:\n%s", *ascii);
 	writes(s, *ascii);
 
 	return TRUE;
