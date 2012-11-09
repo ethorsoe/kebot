@@ -24,11 +24,10 @@ function getDBValue() {
 				for (j=1;j<thisarg.length;j++) {
 					thisarray[j-1]=escapes(thisarg[j])
 				}
-				print(i,j)
-				inputs[i-1] = "'" + thisarg[0] + "' IN (" + thisarray.join("','") + "')"
+				inputs[i-1] = "" + thisarg[0] + " IN ('" + thisarray.join("','") + "')"
 			}
 			else {
-				inputs[i-1] = "'" + thisarg[0] + "' == '" + escapes(thisarg[1]) + "'"
+				inputs[i-1] = "" + thisarg[0] + " == '" + escapes(thisarg[1]) + "'"
 			}
 		}
 		else {
@@ -60,9 +59,20 @@ function msgevent(who,whom,message){
 	return ""
 }
 
+function getHosts(host) {
+	var hosts = host.split('.')
+
+	var table = new Array(hosts.length-1)
+	for (i=0;i<hosts.length-1;i++) {
+		table[i]=hosts.slice(i).join(".")
+	}
+
+	return table
+}
+
 function joinevent(who, where) {
-	if (getDBValue("op."+where, who) == 'yes') {
-		var hostmask = hostmaskre.exec(who)
+	var hostmask = hostmaskre.exec(who)
+	if (hostmask && getDBValue("op."+where, ["ident", hostmask[2]], ["host"].concat(getHosts(hostmask[3]))) == "yes") {
 		return "MODE " + where + " +o " + hostmask[1] + "\n"
 	}
 	return ''
