@@ -18,6 +18,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <sqlite3.h>
+#include <string>
 
 #define MAXDATASIZE 40960
 #define SOURCESIZE 409600
@@ -132,47 +133,34 @@ static Handle<Value> setTimer(const Arguments& args) {
 
 char source[SOURCESIZE];
 
-int main()
-{
-	int ret;
-
+int open_irc_connection(const char *server) {
+	int sock, ret;
 	struct addrinfo hints, *servinfo;
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC; // don't care IPv4 or IPv6
 	hints.ai_socktype = SOCK_STREAM; // TCP stream sockets
 
-	if ((ret = getaddrinfo("irc.inet.fi", "6667",&hints,&servinfo)) != 0)
+	if ((ret = getaddrinfo(server, "6667",&hints,&servinfo)) != 0)
 	{
 		fprintf(stderr,"getaddrinfo: %s\n", gai_strerror(ret));
 	}
 
-	if ((s = socket(servinfo->ai_family,servinfo->ai_socktype,servinfo->ai_protocol)) == -1)
+	if ((sock = socket(servinfo->ai_family,servinfo->ai_socktype,servinfo->ai_protocol)) == -1)
 	{
 		perror("client: socket");
 	}
-	if (connect(s,servinfo->ai_addr, servinfo->ai_addrlen) == -1)
+	if (connect(sock,servinfo->ai_addr, servinfo->ai_addrlen) == -1)
 	{
-		close (s);
+		close (sock);
+		sock=-1;
 		perror("Client Connect");
 	}
 	freeaddrinfo(servinfo);
+	return sock;
+}
 
-	memset(source,0,SOURCESIZE);
-	FILE* sourcefp = fopen("kebot.js", "r");
-	fread(source, 1, SOURCESIZE, sourcefp);
-	fclose(sourcefp);
-
-	ret = sqlite3_open("ircnet.db", &db);
-	if( ret ){
-		fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
-		sqlite3_close(db);
-		exit(1);
-	}
-
-	GMainLoop *main_loop = g_main_loop_new(NULL, FALSE);
-	GIOChannel *ircchan = g_io_channel_unix_new(s);
-	g_io_add_watch(ircchan, G_IO_IN, glib_callback, 0);
-
+int sandboxme(){
+	int ret = 0;
 #ifndef NOSECCOMP
 	ret = seccomp_init(SCMP_ACT_KILL);
 	if (ret < 0)
@@ -222,31 +210,81 @@ int main()
 		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(close), 0);
 	if (!ret)
 		ret = seccomp_load();
-	if (ret)
-		printf("error setting seccomp\n");
 #endif
+	return ret;
+}
 
-	HandleScope handle_scope;
-	Handle<ObjectTemplate> global = ObjectTemplate::New();
+class IrcSession {
+public:
+	IrcSession(std::string thisnetwork): network(thisnetwork) { }
+	std::string server;
+	std::string network;
+	pid_t pid;
+	int sock;
 
-	global->Set(String::New("log"), FunctionTemplate::New(LogCallback));
-	global->Set(String::New("cppGetDBValue"), FunctionTemplate::New(getDBValue));
-	global->Set(String::New("cppSetTimer"), FunctionTemplate::New(setTimer));
-	global->SetAccessor(String::New("x"), XGetter, XSetter);
-	global->SetAccessor(String::New("script_retval"), retvalGetter, retvalSetter);
+	int connect(std::string thisserver){
+		int ret;
 
-	Persistent<Context> context = Context::New(NULL, global);
-	Context::Scope context_scope(context);
-	Handle<String> sourcehandle = String::New(source);
-	Handle<Script> script = Script::Compile(sourcehandle);
-	scriptp = &script;
+		server=thisserver;
+		sock = open_irc_connection(server.c_str());
 
-	writes(s, "USER MyRealName * * :My Description\n");
-	writes(s, "NICK Lipschitz-test\n");
+		if (0 > sock)
+			return -1;
 
-	g_main_loop_run(main_loop);
+		s=sock;
 
-	context.Dispose();
-	sqlite3_close(db);
+		std::string dbname = network + ".db";
+		ret = sqlite3_open(dbname.c_str(), &db);
+		if( ret ){
+			fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
+			sqlite3_close(db);
+		exit(1);
+		}
+
+		GMainLoop *main_loop = g_main_loop_new(NULL, FALSE);
+		GIOChannel *ircchan = g_io_channel_unix_new(s);
+		g_io_add_watch(ircchan, G_IO_IN, glib_callback, 0);
+
+		if (sandboxme()) {
+			printf("error setting seccomp\n");
+			exit(1);
+		}
+
+		HandleScope handle_scope;
+		Handle<ObjectTemplate> global = ObjectTemplate::New();
+
+		global->Set(String::New("log"), FunctionTemplate::New(LogCallback));
+		global->Set(String::New("cppGetDBValue"), FunctionTemplate::New(getDBValue));
+		global->Set(String::New("cppSetTimer"), FunctionTemplate::New(setTimer));
+		global->SetAccessor(String::New("x"), XGetter, XSetter);
+		global->SetAccessor(String::New("script_retval"), retvalGetter, retvalSetter);
+
+		Persistent<Context> context = Context::New(NULL, global);
+		Context::Scope context_scope(context);
+		Handle<String> sourcehandle = String::New(source);
+		Handle<Script> script = Script::Compile(sourcehandle);
+		scriptp = &script;
+
+		writes(s, "USER MyRealName * * :My Description\n");
+		writes(s, "NICK Lipschitz-test\n");
+
+		g_main_loop_run(main_loop);
+
+		context.Dispose();
+		sqlite3_close(db);
+		return 0;
+	}
+};
+
+int main()
+{
+	memset(source,0,SOURCESIZE);
+	FILE* sourcefp = fopen("kebot.js", "r");
+	fread(source, 1, SOURCESIZE, sourcefp);
+	fclose(sourcefp);
+
+	IrcSession session("ircnet");
+	std::string server("irc.inet.fi");
+	session.connect(server);
 }
 
