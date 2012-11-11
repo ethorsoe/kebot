@@ -107,7 +107,6 @@ gboolean glib_callback(GIOChannel *source, GIOCondition, gpointer ptr)
 	script_retval = TRUE;
 	Handle<Value> result = (*scriptp)->Run();
 
-	// Convert the result to an ASCII string and print it.
 	String::AsciiValue ascii(result);
 	printf("ascii:\n%s", *ascii);
 	writes(s, *ascii);
@@ -135,68 +134,35 @@ char source[SOURCESIZE];
 
 int main()
 {
+	int ret;
+
 	struct addrinfo hints, *servinfo;
-
-	//Ensure that servinfo is clear
-	memset(&hints, 0, sizeof hints); // make sure the struct is empty
-
-	//setup hints
+	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC; // don't care IPv4 or IPv6
 	hints.ai_socktype = SOCK_STREAM; // TCP stream sockets
 
-	//Setup the structs if error print why
-	int res;
-	if ((res = getaddrinfo("irc.inet.fi", "6667",&hints,&servinfo)) != 0)
+	if ((ret = getaddrinfo("irc.inet.fi", "6667",&hints,&servinfo)) != 0)
 	{
-		fprintf(stderr,"getaddrinfo: %s\n", gai_strerror(res));
+		fprintf(stderr,"getaddrinfo: %s\n", gai_strerror(ret));
 	}
 
-
-	//setup the socket
 	if ((s = socket(servinfo->ai_family,servinfo->ai_socktype,servinfo->ai_protocol)) == -1)
 	{
 		perror("client: socket");
 	}
-
-	//Connect
 	if (connect(s,servinfo->ai_addr, servinfo->ai_addrlen) == -1)
 	{
 		close (s);
 		perror("Client Connect");
 	}
+	freeaddrinfo(servinfo);
 
 	memset(source,0,SOURCESIZE);
 	FILE* sourcefp = fopen("kebot.js", "r");
 	fread(source, 1, SOURCESIZE, sourcefp);
 	fclose(sourcefp);
 
-	// Create a stack-allocated handle scope.
-	HandleScope handle_scope;
-
-	// Create a new context.
-	Handle<ObjectTemplate> global = ObjectTemplate::New();
-	global->Set(String::New("log"), FunctionTemplate::New(LogCallback));
-	global->Set(String::New("cppGetDBValue"), FunctionTemplate::New(getDBValue));
-	global->Set(String::New("cppSetTimer"), FunctionTemplate::New(setTimer));
-	global->SetAccessor(String::New("x"), XGetter, XSetter);
-	global->SetAccessor(String::New("script_retval"), retvalGetter, retvalSetter);
-	Persistent<Context> context = Context::New(NULL, global);
-
-	// Enter the created context for compiling and
-	// running the hello world script. 
- 	Context::Scope context_scope(context);
-
-	// Create a string containing the JavaScript source code.
-	Handle<String> sourcehandle = String::New(source);
-
-	// Compile the source code.
-	Handle<Script> script = Script::Compile(sourcehandle);
-	scriptp = &script;
-
-	//We dont need this anymore
-	freeaddrinfo(servinfo);
-
-	int ret = sqlite3_open("ircnet.db", &db);
+	ret = sqlite3_open("ircnet.db", &db);
 	if( ret ){
 		fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
 		sqlite3_close(db);
@@ -206,7 +172,7 @@ int main()
 	GMainLoop *main_loop = g_main_loop_new(NULL, FALSE);
 	GIOChannel *ircchan = g_io_channel_unix_new(s);
 	g_io_add_watch(ircchan, G_IO_IN, glib_callback, 0);
-	
+
 #ifndef NOSECCOMP
 	ret = seccomp_init(SCMP_ACT_KILL);
 	if (ret < 0)
@@ -260,12 +226,26 @@ int main()
 		printf("error setting seccomp\n");
 #endif
 
+	HandleScope handle_scope;
+	Handle<ObjectTemplate> global = ObjectTemplate::New();
+
+	global->Set(String::New("log"), FunctionTemplate::New(LogCallback));
+	global->Set(String::New("cppGetDBValue"), FunctionTemplate::New(getDBValue));
+	global->Set(String::New("cppSetTimer"), FunctionTemplate::New(setTimer));
+	global->SetAccessor(String::New("x"), XGetter, XSetter);
+	global->SetAccessor(String::New("script_retval"), retvalGetter, retvalSetter);
+
+	Persistent<Context> context = Context::New(NULL, global);
+	Context::Scope context_scope(context);
+	Handle<String> sourcehandle = String::New(source);
+	Handle<Script> script = Script::Compile(sourcehandle);
+	scriptp = &script;
+
 	writes(s, "USER MyRealName * * :My Description\n");
 	writes(s, "NICK Lipschitz-test\n");
 
 	g_main_loop_run(main_loop);
-	
-	// Dispose the persistent context.
+
 	context.Dispose();
 	sqlite3_close(db);
 }
