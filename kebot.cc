@@ -84,7 +84,7 @@ static Handle<Value> getDBValue(const Arguments& args) {
 int s;
 
 int writes(int fd, const char *a) {
-	write(fd, a, strlen(a));
+	return write(fd, a, strlen(a));
 }
 
 gboolean glib_callback(GIOChannel *source, GIOCondition, gpointer ptr)
