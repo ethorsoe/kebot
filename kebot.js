@@ -40,30 +40,35 @@ function getDBValue() {
 	return cppGetDBValue(input);
 }
 
-function cmdevent(command, parameters){
+function cmdevent(command, parameters, who, context){
+	if ("timer" == command) {
+		var timers = / *([0-9]+) *(.*)/.exec(parameters)
+		if (timers) {
+			cppSetTimer(timers[1], "KEBOTCMD TIMER "+context+" " + timers[2]) + "\n"
+			return ""
+		}
+	}
+
+	var hostmask = hostmaskre.exec(who)
+	if (getDBValue("master", ["ident", hostmask[2]], ["host"].concat(getHosts(hostmask[3]))) != 'yes')
+		return ""
+
 	if ("join" == command)
 		return 'JOIN ' + parameters + '\n';
 	if ("say" == command) {
 		var targets = saytoken.exec(parameters)
 		return "PRIVMSG "+targets[1]+" :"+ targets[2] +"\n"
 	}
-	if ("timer" == command) {
-		var timers = / *([0-9]+) *(.*)/.exec(parameters)
-		if (timers) {
-			cppSetTimer(timers[1], "KEBOTCMD TIMER Ke " + timers[2]) + "\n"
-			return ""
-		}
-	}
 	return "";
 }
 
 function msgevent(who,whom,message){
-	var hostmask = hostmaskre.exec(who)
-	if (getDBValue("master", ["ident", hostmask[2]], ["host"].concat(getHosts(hostmask[3]))) == 'yes') {
-		var cmd = cmdre.exec(message)
-		if (cmd) {
-			return cmdevent(cmd[1],cmd[2])
-		}
+	var cmd = cmdre.exec(message)
+	if (cmd) {
+		if (/^[#!]/.exec(whom))
+			return cmdevent(cmd[1],cmd[2],who,whom)
+		else
+			return cmdevent(cmd[1],cmd[2],who,who)
 	}
 	return ""
 }
