@@ -26,9 +26,11 @@
 using namespace v8;
 
 char buf[MAXDATASIZE];
+char source[SOURCESIZE];
 sqlite3 *db;
 Handle<Script> *scriptp;
 gboolean script_retval;
+int s;
 
 Handle<Value> XGetter(Local<String>, const AccessorInfo&) {
 	return String::New(buf);
@@ -82,8 +84,6 @@ static Handle<Value> getDBValue(const Arguments& args) {
 	return String::New(result);
 }
 
-int s;
-
 int writes(int fd, const char *a) {
 	return write(fd, a, strlen(a));
 }
@@ -130,8 +130,6 @@ static Handle<Value> setTimer(const Arguments& args) {
 
 	return v8::Undefined();
 }
-
-char source[SOURCESIZE];
 
 int open_irc_connection(const char *server) {
 	int sock, ret;
