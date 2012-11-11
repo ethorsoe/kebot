@@ -4,6 +4,7 @@ var cmdre = /%(\S+)( +\S.+)?/i
 var pingre = /PING( .+)/i
 var saytoken = /(\S+) (.*)/
 var hostmaskre = /([^!@: ]+)!([^!@: ]+)@([^!@: ]+)/
+var timerre = /KEBOTCMD TIMER (\S+) +(.+)/
 
 var lines = x.split("\n")
 
@@ -45,6 +46,13 @@ function cmdevent(command, parameters){
 	if ("say" == command) {
 		var targets = saytoken.exec(parameters)
 		return "PRIVMSG "+targets[1]+" :"+ targets[2] +"\n"
+	}
+	if ("timer" == command) {
+		var timers = / *([0-9]+) *(.*)/.exec(parameters)
+		if (timers) {
+			cppSetTimer(timers[1], "KEBOTCMD TIMER Ke " + timers[2]) + "\n"
+			return ""
+		}
 	}
 	return "";
 }
@@ -96,6 +104,11 @@ function f(b){
 		if (join) {
 			retval += joinevent(join[1],join[2])
 			continue
+		}
+		var timer = timerre.exec(b[i])
+		if (timer) {
+			retval += "PRIVMSG " + timer[1] + " :" + timer[2] + "\n"
+			script_retval = false
 		}
 	}
 	return retval

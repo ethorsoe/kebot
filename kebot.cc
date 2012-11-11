@@ -26,10 +26,25 @@ using namespace v8;
 
 char buf[MAXDATASIZE];
 sqlite3 *db;
+Handle<Script> *scriptp;
+gboolean script_retval;
 
 Handle<Value> XGetter(Local<String> property, 
 	const AccessorInfo& info) {
 	return String::New(buf);
+}
+
+void retvalSetter(Local<String>, Local<Value> value, const AccessorInfo&) {
+		if (value->IsTrue())
+			script_retval=TRUE;
+		else
+			script_retval=FALSE;
+}
+
+Handle<Value> retvalGetter(Local<String>, const AccessorInfo&) {
+	if (script_retval)
+		return v8::True();
+	return v8::False();
 }
 
 void XSetter(Local<String> property, Local<Value> value,
@@ -74,28 +89,48 @@ int writes(int fd, const char *a) {
 	write(fd, a, strlen(a));
 }
 
-gboolean irc_callback(GIOChannel *source, GIOCondition cond, gpointer ptr)
+gboolean glib_callback(GIOChannel *source, GIOCondition, gpointer ptr)
 {
-	int numbytes=0;
-	do {
-		if (MAXDATASIZE <= numbytes + 1) exit(1);
-		numbytes += read(s,buf+numbytes,MAXDATASIZE-1-numbytes);
+	if (source) {
+		int numbytes=0;
+		do {
+			if (MAXDATASIZE <= numbytes + 1) exit(1);
+			numbytes += read(s,buf+numbytes,MAXDATASIZE-1-numbytes);
+		}
+		while ('\n' != buf[numbytes-1]);
 		buf[numbytes]='\0';
 	}
-	while ('\n' != buf[numbytes-1]);
+	else {
+		strcpy(buf,(char*)ptr);
+		free((char*)ptr);
+	}
 	printf("%s", buf);
 
-	Handle<Script> *script = (Handle<Script>*)ptr;
-
-	// Run the script to get the result.
-	Handle<Value> result = (*script)->Run();
+	script_retval = TRUE;
+	Handle<Value> result = (*scriptp)->Run();
 
 	// Convert the result to an ASCII string and print it.
 	String::AsciiValue ascii(result);
 	printf("ascii:\n%s", *ascii);
 	writes(s, *ascii);
 
-	return TRUE;
+	return script_retval;
+}
+
+gboolean timer_callback(gpointer userdata) {
+	return glib_callback(NULL,G_IO_NVAL,userdata);
+}
+
+static Handle<Value> setTimer(const Arguments& args) {
+	if (args.Length() < 2) return v8::Undefined();
+	int sleepTime = args[0]->Int32Value();
+	HandleScope scope;
+	Handle<Value> arg = args[1];
+	String::Utf8Value value(arg);
+
+	g_timeout_add_seconds (sleepTime, timer_callback, strdup(*value));
+
+	return v8::Undefined();
 }
 
 char source[SOURCESIZE];
@@ -144,7 +179,9 @@ int main()
 	Handle<ObjectTemplate> global = ObjectTemplate::New();
 	global->Set(String::New("log"), FunctionTemplate::New(LogCallback));
 	global->Set(String::New("cppGetDBValue"), FunctionTemplate::New(getDBValue));
+	global->Set(String::New("cppSetTimer"), FunctionTemplate::New(setTimer));
 	global->SetAccessor(String::New("x"), XGetter, XSetter);
+	global->SetAccessor(String::New("script_retval"), retvalGetter, retvalSetter);
 	Persistent<Context> context = Context::New(NULL, global);
 
 	// Enter the created context for compiling and
@@ -156,6 +193,7 @@ int main()
 
 	// Compile the source code.
 	Handle<Script> script = Script::Compile(sourcehandle);
+	scriptp = &script;
 
 	//We dont need this anymore
 	freeaddrinfo(servinfo);
@@ -169,7 +207,7 @@ int main()
 
 	GMainLoop *main_loop = g_main_loop_new(NULL, FALSE);
 	GIOChannel *ircchan = g_io_channel_unix_new(s);
-	g_io_add_watch(ircchan, G_IO_IN, irc_callback, &script);
+	g_io_add_watch(ircchan, G_IO_IN, glib_callback, 0);
 	
 #ifndef NOSECCOMP
 	ret = seccomp_init(SCMP_ACT_KILL);
