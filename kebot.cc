@@ -29,8 +29,7 @@ sqlite3 *db;
 Handle<Script> *scriptp;
 gboolean script_retval;
 
-Handle<Value> XGetter(Local<String> property, 
-	const AccessorInfo& info) {
+Handle<Value> XGetter(Local<String>, const AccessorInfo&) {
 	return String::New(buf);
 }
 
@@ -47,8 +46,7 @@ Handle<Value> retvalGetter(Local<String>, const AccessorInfo&) {
 	return v8::False();
 }
 
-void XSetter(Local<String> property, Local<Value> value,
-	const AccessorInfo& info) {
+void XSetter(Local<String>, Local<Value>, const AccessorInfo&) {
 }
 
 static Handle<Value> LogCallback(const Arguments& args) {
@@ -61,7 +59,7 @@ static Handle<Value> LogCallback(const Arguments& args) {
 	return v8::Undefined();
 }
 
-static int sqlite_callback(void *target, int argc, char **argv, char **azColName){
+static int sqlite_callback(void *target, int argc, char **argv, char**){
 	if (1 <= argc) {
 		strcpy((char*)target, argv[0]);
 	}
