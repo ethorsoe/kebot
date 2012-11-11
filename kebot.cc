@@ -1,24 +1,22 @@
 #include <unistd.h>
+#include <netdb.h>
+#include <pthread.h>
 #include <errno.h>
-#include <string.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
-#include <netdb.h>
-#include <arpa/inet.h>
 #include <sys/wait.h>
-#include <signal.h>
-#include <time.h>
+
+#include <cstdio>
+#include <cstring>
+#include <cstdlib>
+#include <string>
+
+#include <sqlite3.h>
 #include <seccomp.h>
 #include <glib.h>
 #include <v8.h>
-#include <cstdio>
-#include <cstdlib>
-#include <sys/types.h>
-#include <unistd.h>
-#include <pthread.h>
-#include <sqlite3.h>
-#include <string>
 
 #define MAXDATASIZE 40960
 #define SOURCESIZE 409600
