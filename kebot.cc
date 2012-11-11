@@ -17,6 +17,7 @@
 #include <seccomp.h>
 #include <glib.h>
 #include <v8.h>
+#include <libconfig.h++>
 
 #define MAXDATASIZE 40960
 #define SOURCESIZE 409600
@@ -212,9 +213,13 @@ int sandboxme(){
 
 class IrcSession {
 public:
-	IrcSession(std::string thisnetwork): network(thisnetwork) { }
+	IrcSession(std::string thisnetwork, std::string thisident,
+	           std::string thisnick):
+	           network(thisnetwork),ident(thisident),nick(thisnick) { }
 	std::string server;
 	std::string network;
+	std::string ident;
+	std::string nick;
 	pid_t pid;
 	int sock;
 
@@ -261,8 +266,10 @@ public:
 		Handle<Script> script = Script::Compile(sourcehandle);
 		scriptp = &script;
 
-		writes(s, "USER MyRealName * * :My Description\n");
-		writes(s, "NICK Lipschitz-test\n");
+		std::string identstring = "USER " + ident + " * * :My Description\n";
+		std::string nickstring = "NICK " + nick + "\n";
+		writes(s, identstring.c_str());
+		writes(s, nickstring.c_str());
 
 		g_main_loop_run(main_loop);
 
@@ -272,15 +279,38 @@ public:
 	}
 };
 
-int main()
+int main(int argc, char *argv[])
 {
+	if (2 != argc) {
+		printf("Usage %s <configfile>\n", argv[0]);
+		exit(1);
+	}
+
 	memset(source,0,SOURCESIZE);
 	FILE* sourcefp = fopen("kebot.js", "r");
 	fread(source, 1, SOURCESIZE, sourcefp);
 	fclose(sourcefp);
 
-	IrcSession session("ircnet");
-	std::string server("irc.inet.fi");
-	session.connect(server);
+	libconfig::Config cfg;
+	cfg.readFile(argv[1]);
+	const libconfig::Setting& root = cfg.getRoot();
+	const libconfig::Setting &networks = root["networks"];
+	int count = networks.getLength();
+
+	for (int i=0; i<count; i++) {
+		const libconfig::Setting &net = networks[i];
+
+		std::string network, nick, ident, server;
+
+		if (!(net.lookupValue("network", network)
+		     && net.lookupValue("nick", nick)
+		     && net.lookupValue("ident", ident)
+		     && net.lookupValue("server", server)
+		))
+			exit(1);
+
+		IrcSession session(network,ident,nick);
+		session.connect(server);
+	}
 }
 
