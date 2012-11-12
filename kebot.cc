@@ -7,11 +7,13 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
+#include <fcntl.h>
 
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
 #include <string>
+#include <map>
 
 #include <sqlite3.h>
 #include <seccomp.h>
@@ -213,6 +215,7 @@ int sandboxme(){
 
 class IrcSession {
 public:
+	IrcSession() {}
 	IrcSession(std::string thisnetwork, std::string thisident,
 	           std::string thisnick):
 	           network(thisnetwork),ident(thisident),nick(thisnick) { }
@@ -224,13 +227,29 @@ public:
 	int sock;
 
 	int connect(std::string thisserver){
-		int ret;
-
 		server=thisserver;
 		sock = open_irc_connection(server.c_str());
 
 		if (0 > sock)
 			return -1;
+		return 0;
+	}
+
+	pid_t run_session() {
+		int ret;
+
+		if ((pid = fork()))
+			return pid;
+
+		std::string logfile=network+".log";
+		int logfd = open(logfile.c_str(), O_WRONLY|O_CREAT|O_APPEND, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
+		close(0);
+		close(1);
+		close(2);
+		dup2(logfd,1);
+		dup2(logfd,2);
+		close(logfd);
+		setvbuf(stdout, NULL, _IOLBF, 0);
 
 		s=sock;
 
@@ -291,6 +310,8 @@ int main(int argc, char *argv[])
 	fread(source, 1, SOURCESIZE, sourcefp);
 	fclose(sourcefp);
 
+	std::map<pid_t,IrcSession> sessions;
+
 	libconfig::Config cfg;
 	cfg.readFile(argv[1]);
 	const libconfig::Setting& root = cfg.getRoot();
@@ -310,7 +331,19 @@ int main(int argc, char *argv[])
 			exit(1);
 
 		IrcSession session(network,ident,nick);
-		session.connect(server);
+		int retval = session.connect(server);
+		if (!retval)
+			sessions[session.run_session()] = session;
+	}
+	while (1) {
+		int status;
+		pid_t pid = wait(&status);
+		IrcSession session = sessions[pid];
+		sessions.erase(pid);
+		close(session.sock);
+		int retval = session.connect(session.server);
+		if (!retval)
+			sessions[session.run_session()] = session;
 	}
 }
 
