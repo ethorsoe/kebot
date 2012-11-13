@@ -31,7 +31,7 @@ char source[SOURCESIZE];
 sqlite3 *db;
 Handle<Script> *scriptp;
 gboolean script_retval;
-int s;
+int s, timeout_counter = 0;
 
 typedef enum {
 	RETVAL_EXIT,
@@ -98,6 +98,7 @@ int writes(int fd, const char *a) {
 
 gboolean glib_callback(GIOChannel *source, GIOCondition, gpointer ptr)
 {
+	timeout_counter = 0;
 	if (source) {
 		int numbytes=0;
 		do {
@@ -125,6 +126,12 @@ gboolean glib_callback(GIOChannel *source, GIOCondition, gpointer ptr)
 
 gboolean timer_callback(gpointer userdata) {
 	return glib_callback(NULL,G_IO_NVAL,userdata);
+}
+
+gboolean ping_timeout_callback(gpointer) {
+	if (4 < ++timeout_counter)
+		exit(RETVAL_DISCONNECT);
+	return TRUE;
 }
 
 static Handle<Value> setTimer(const Arguments& args) {
@@ -298,6 +305,7 @@ public:
 		Handle<Script> script = Script::Compile(sourcehandle);
 		scriptp = &script;
 
+		g_timeout_add_seconds (60, ping_timeout_callback, 0);
 		g_main_loop_run(main_loop);
 
 		context.Dispose();
