@@ -33,6 +33,13 @@ Handle<Script> *scriptp;
 gboolean script_retval;
 int s;
 
+typedef enum {
+	RETVAL_EXIT,
+	RETVAL_DISCONNECT,
+	RETVAL_ERROR,
+	RETVAL_RELOAD}
+	SessionRetVal;
+
 Handle<Value> XGetter(Local<String>, const AccessorInfo&) {
 	return String::New(buf);
 }
@@ -232,6 +239,12 @@ public:
 
 		if (0 > sock)
 			return -1;
+
+		std::string identstring = "USER " + ident + " * * :My Description\n";
+		std::string nickstring = "NICK " + nick + "\n";
+		writes(sock, identstring.c_str());
+		writes(sock, nickstring.c_str());
+
 		return 0;
 	}
 
@@ -285,11 +298,6 @@ public:
 		Handle<Script> script = Script::Compile(sourcehandle);
 		scriptp = &script;
 
-		std::string identstring = "USER " + ident + " * * :My Description\n";
-		std::string nickstring = "NICK " + nick + "\n";
-		writes(s, identstring.c_str());
-		writes(s, nickstring.c_str());
-
 		g_main_loop_run(main_loop);
 
 		context.Dispose();
@@ -298,6 +306,13 @@ public:
 	}
 };
 
+void load_source() {
+	memset(source,0,SOURCESIZE);
+	FILE* sourcefp = fopen("kebot.js", "r");
+	fread(source, 1, SOURCESIZE, sourcefp);
+	fclose(sourcefp);
+}
+
 int main(int argc, char *argv[])
 {
 	if (2 != argc) {
@@ -305,10 +320,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	memset(source,0,SOURCESIZE);
-	FILE* sourcefp = fopen("kebot.js", "r");
-	fread(source, 1, SOURCESIZE, sourcefp);
-	fclose(sourcefp);
+	load_source();
 
 	std::map<pid_t,IrcSession> sessions;
 
@@ -338,12 +350,36 @@ int main(int argc, char *argv[])
 	while (1) {
 		int status;
 		pid_t pid = wait(&status);
+		SessionRetVal childret = RETVAL_EXIT;
+
+		if (WIFEXITED(status)) {
+			childret = (SessionRetVal)WEXITSTATUS(status);
+		}
+		else if (WIFSIGNALED(status)){
+			if (SIGPIPE == WTERMSIG(status))
+				childret = RETVAL_DISCONNECT;
+			else
+				childret = RETVAL_ERROR;
+		}
+		else
+			continue;
+		printf ("pid %d exit with %d\n", pid, childret);
+
+		if (RETVAL_EXIT == childret)
+			continue;
+
 		IrcSession session = sessions[pid];
 		sessions.erase(pid);
-		close(session.sock);
-		int retval = session.connect(session.server);
-		if (!retval)
-			sessions[session.run_session()] = session;
+		if (RETVAL_DISCONNECT == childret) {
+			close(session.sock);
+			int retval = session.connect(session.server);
+			if (0 > retval)
+				continue;
+		}
+		if (RETVAL_RELOAD == childret)
+			load_source();
+		pid_t newpid = session.run_session();
+		sessions[newpid] = session;
 	}
 }
 
