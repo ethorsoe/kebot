@@ -59,6 +59,8 @@ function cmdevent(command, parameters, who, context){
 		var targets = saytoken.exec(parameters)
 		return "PRIVMSG "+targets[1]+" :"+ targets[2] +"\n"
 	}
+	if ("reload" == command)
+		exit(4)
 	return "";
 }
 
