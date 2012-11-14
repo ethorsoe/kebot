@@ -63,6 +63,14 @@ Handle<Value> retvalGetter(Local<String>, const AccessorInfo&) {
 void XSetter(Local<String>, Local<Value>, const AccessorInfo&) {
 }
 
+static Handle<Value> ExitCallback(const Arguments& args) {
+	if (args.Length() != 1) return v8::Undefined();
+	int exitval = args[0]->Int32Value();
+	printf("EXIT by clientscript %d\n", exitval);
+	exit(exitval);
+	return v8::Undefined();
+}
+
 static Handle<Value> LogCallback(const Arguments& args) {
 	if (args.Length() < 1) return v8::Undefined();
 	HandleScope scope;
@@ -305,6 +313,7 @@ public:
 		HandleScope handle_scope;
 		Handle<ObjectTemplate> global = ObjectTemplate::New();
 
+		global->Set(String::New("exit"), FunctionTemplate::New(ExitCallback));
 		global->Set(String::New("log"), FunctionTemplate::New(LogCallback));
 		global->Set(String::New("cppGetDBValue"), FunctionTemplate::New(getDBValue));
 		global->Set(String::New("cppSetTimer"), FunctionTemplate::New(setTimer));
