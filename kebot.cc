@@ -21,6 +21,8 @@
 #include <v8.h>
 #include <libconfig.h++>
 
+#include "kebot.hh"
+
 #define MAXDATASIZE 40960
 #define SOURCESIZE 409600
 
@@ -37,6 +39,7 @@ typedef enum {
 	RETVAL_EXIT,
 	RETVAL_DISCONNECT,
 	RETVAL_ERROR,
+	RETVAL_FATAL_ERROR,
 	RETVAL_RELOAD}
 	SessionRetVal;
 
@@ -175,12 +178,17 @@ int open_irc_connection(const char *server) {
 int sandboxme(){
 	int ret = 0;
 #ifndef NOSECCOMP
+	printf("Entering seccomp sandbox now\n");
 	ret = seccomp_init(SCMP_ACT_KILL);
 	if (ret < 0)
 		printf("Error from seccomp_init\n");
 	ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(read), 0);
 	if (!ret)
+		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(pread64), 0);
+	if (!ret)
 		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(write), 0);
+	if (!ret)
+		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(pwrite64), 0);
 	if (!ret)
 		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(fstat), 0);
 	if (!ret)
@@ -216,13 +224,15 @@ int sandboxme(){
 	if (!ret)
 		ret = seccomp_rule_add(SCMP_ACT_ERRNO(5), SCMP_SYS(access), 0);
 	if (!ret)
-		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(fcntl), 0);
+		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(ftruncate), 0);
 	if (!ret)
 		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(fsync), 0);
 	if (!ret)
 		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(close), 0);
 	if (!ret)
 		ret = seccomp_load();
+#else
+	printf("Would enter seccomp sandbox now\n");
 #endif
 	return ret;
 }
@@ -263,7 +273,6 @@ public:
 
 		std::string logfile=network+".log";
 		int logfd = open(logfile.c_str(), O_WRONLY|O_CREAT|O_APPEND, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
-		close(0);
 		close(1);
 		close(2);
 		dup2(logfd,1);
@@ -274,12 +283,9 @@ public:
 		s=sock;
 
 		std::string dbname = network + ".db";
-		ret = sqlite3_open(dbname.c_str(), &db);
-		if( ret ){
-			fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
-			sqlite3_close(db);
-		exit(1);
-		}
+		sqlite3_vfs_register(&kebotVfs, 1);
+		open_db(dbname.c_str());
+		close(0);
 
 		GMainLoop *main_loop = g_main_loop_new(NULL, FALSE);
 		GIOChannel *ircchan = g_io_channel_unix_new(s);
@@ -288,6 +294,12 @@ public:
 		if (sandboxme()) {
 			printf("error setting seccomp\n");
 			exit(1);
+		}
+		ret = sqlite3_open(dbname.c_str(), &db);
+		if( ret ){
+			fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
+			sqlite3_close(db);
+			exit(RETVAL_FATAL_ERROR);
 		}
 
 		HandleScope handle_scope;
