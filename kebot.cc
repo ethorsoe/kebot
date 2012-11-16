@@ -264,12 +264,6 @@ public:
 
 		if (0 > sock)
 			return -1;
-
-		std::string identstring = "USER " + ident + " * * :My Description\n";
-		std::string nickstring = "NICK " + nick + "\n";
-		writes(sock, identstring.c_str());
-		writes(sock, nickstring.c_str());
-
 		return 0;
 	}
 
@@ -326,6 +320,7 @@ public:
 		Handle<Script> script = Script::Compile(sourcehandle);
 		scriptp = &script;
 
+		glib_callback(NULL,G_IO_NVAL,(gpointer)strdup("INIT\n"));
 		g_timeout_add_seconds (60, ping_timeout_callback, 0);
 		g_main_loop_run(main_loop);
 

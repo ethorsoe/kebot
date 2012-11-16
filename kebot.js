@@ -5,6 +5,7 @@ var pingre = /PING( .+)/i
 var saytoken = /(\S+) (.*)/
 var hostmaskre = /([^!@: ]+)!([^!@: ]+)@([^!@: ]+)/
 var timerre = /KEBOTCMD TIMER (\S+) +(.+)/
+var nickerrre = /\S+ 433 * ([^:]+):.*/
 
 var lines = x.split("\n")
 
@@ -116,6 +117,14 @@ function f(b){
 		if (timer) {
 			retval += "PRIVMSG " + timer[1] + " :" + timer[2] + "\n"
 			script_retval = false
+		}
+		if ("INIT" == b[i]) {
+			retval += "USER " + getDBValue("conf", "ident") + " * * *:" + getDBValue("conf","realname") + "\n"
+			retval += "NICK " + getDBValue("conf", "nick") + "\n"
+		}
+		var nickerr = nickerrre.exec(b[i])
+		if (nickerr) {
+			retval += "NICK " + getDBValue("conf", "altnick") + "\n"
 		}
 	}
 	return retval
