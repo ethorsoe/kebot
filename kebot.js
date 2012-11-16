@@ -119,7 +119,7 @@ function f(b){
 			script_retval = false
 		}
 		if ("INIT" == b[i]) {
-			retval += "USER " + getDBValue("conf", "ident") + " * * *:" + getDBValue("conf","realname") + "\n"
+			retval += "USER " + getDBValue("conf", "ident") + " * * :" + getDBValue("conf","realname") + "\n"
 			retval += "NICK " + getDBValue("conf", "nick") + "\n"
 		}
 		var nickerr = nickerrre.exec(b[i])
