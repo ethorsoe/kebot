@@ -123,6 +123,9 @@ function getHosts(host) {
 	return table
 }
 
+function myjoinevent(where) {
+	return getDBValue("joinaction",where)
+}
 function joinevent(who, where) {
 	var hostmask = hostmaskre.exec(who)
 	if (hostmask) {
@@ -131,7 +134,7 @@ function joinevent(who, where) {
 		}
 		var mynick = getDBValue("state",true,"nick")
 		if (hostmask[1] == mynick) {
-			log("I joined " + where)
+			return myjoinevent(where)
 		}
 	}
 	return ""
