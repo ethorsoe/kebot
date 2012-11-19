@@ -5,7 +5,7 @@ var pingre = /PING( .+)/i
 var saytoken = /(\S+) (.*)/
 var hostmaskre = /([^!@: ]+)!([^!@: ]+)@([^!@: ]+)/
 var timerre = /KEBOTCMD TIMER (\S+) +(.+)/
-var nickerrre = /\S+ 433 * ([^:]+):.*/
+var numericre = /\S+ ([0-9]+) \S+ .*/
 
 var lines = x.split("\n")
 
@@ -115,6 +115,14 @@ function joinevent(who, where) {
 	return ''
 }
 
+function numericevent(number) {
+	switch (Number(number)) {
+	case 433:
+		return "NICK " + getDBValue("conf", "altnick") + "\n"
+	}
+	return ""
+}
+
 function f(b){
 	var retval=''
 	for (i in b) {
@@ -142,9 +150,10 @@ function f(b){
 			retval += "USER " + getDBValue("conf", "ident") + " * * :" + getDBValue("conf","realname") + "\n"
 			retval += "NICK " + getDBValue("conf", "nick") + "\n"
 		}
-		var nickerr = nickerrre.exec(b[i])
-		if (nickerr) {
-			retval += "NICK " + getDBValue("conf", "altnick") + "\n"
+		var numeric = numericre.exec(b[i])
+		if (numeric) {
+			retval += numericevent(numeric[1])
+			continue
 		}
 	}
 	return retval
