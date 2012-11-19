@@ -26,6 +26,23 @@ function nick(newnick){
 	return "NICK " + newnick + "\n"
 }
 
+function escapesqls(s) {
+	return s.replace(/'/g,"''")
+}
+function setDBValue() {
+	var input = "PRAGMA SQLITE_TEMP_STORE=3; insert into '" + arguments[0] + "' values('"
+	var init_i = 1
+	var is_volatile = true
+	var inputs = new Array(arguments.length - init_i)
+
+	for (i=init_i;i<arguments.length;i++) {
+		inputs[i-init_i]=escapesqls(arguments[i])
+	}
+	input += inputs.join("','")
+
+	input += "');"
+	return cppGetDBValue(input, is_volatile);
+}
 function getDBValue() {
 	var input = "PRAGMA SQLITE_TEMP_STORE=3; select data from '" + arguments[0] + "' where "
 	var init_i = 1
@@ -36,10 +53,6 @@ function getDBValue() {
 	}
 	var inputs = new Array(arguments.length - init_i)
 
-	function escapes(s) {
-		return s.replace(/'/g,"''")
-	}
-
 	for (i=init_i; i < arguments.length; i++) {
 		var key = " key == "
 		var thisarg=arguments[i]
@@ -47,16 +60,16 @@ function getDBValue() {
 			if (thisarg.length > 2) {
 				var thisarray = new Array(thisarg.length-1)
 				for (j=1;j<thisarg.length;j++) {
-					thisarray[j-1]=escapes(thisarg[j])
+					thisarray[j-1]=escapesqls(thisarg[j])
 				}
 				inputs[i-init_i] = "" + thisarg[0] + " IN ('" + thisarray.join("','") + "')"
 			}
 			else {
-				inputs[i-init_i] = "" + thisarg[0] + " == '" + escapes(thisarg[1]) + "'"
+				inputs[i-init_i] = "" + thisarg[0] + " == '" + escapesqls(thisarg[1]) + "'"
 			}
 		}
 		else {
-			inputs[i-init_i] = "key == '" + escapes(thisarg) + "'"
+			inputs[i-init_i] = "key == '" + escapesqls(thisarg) + "'"
 		}
 	}
 	input += inputs.join(" AND ")
