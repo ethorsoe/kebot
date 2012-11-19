@@ -83,13 +83,14 @@ static Handle<Value> LogCallback(const Arguments& args) {
 
 static int sqlite_callback(void *target, int argc, char **argv, char**){
 	if (1 <= argc) {
-		strcpy((char*)target, argv[0]);
+		strncpy((char*)target, argv[0],MAXDATASIZE);
+		((char*)target)[MAXDATASIZE-1]=0;
 	}
 	return 0;
 }
 
 static Handle<Value> getDBValue(const Arguments& args) {
-	char result[1024];
+	char result[MAXDATASIZE];
 	char *errMsg;
 	result[0]=0;
 	if (args.Length() < 1) return v8::Undefined();
