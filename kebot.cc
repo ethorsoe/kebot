@@ -31,6 +31,7 @@ using namespace v8;
 char buf[MAXDATASIZE];
 char source[SOURCESIZE];
 sqlite3 *db;
+sqlite3 *volatile_db;
 Handle<Script> *scriptp;
 gboolean script_retval;
 int s, timeout_counter = 0;
@@ -93,11 +94,14 @@ static Handle<Value> getDBValue(const Arguments& args) {
 	char result[MAXDATASIZE];
 	char *errMsg;
 	result[0]=0;
+	sqlite3 *thisdb=db;
 	if (args.Length() < 1) return v8::Undefined();
+	if (args.Length() == 2 && args[1]->IsTrue())
+		thisdb = volatile_db;
 	HandleScope scope;
 	Handle<Value> arg = args[0];
 	String::Utf8Value value(arg);
-	int err = sqlite3_exec(db, *value, sqlite_callback, result, &errMsg);
+	int err = sqlite3_exec(thisdb, *value, sqlite_callback, result, &errMsg);
 	if (err)
 		printf("Error %s in SQL\n", errMsg);
 
@@ -304,6 +308,12 @@ public:
 			sqlite3_close(db);
 			exit(RETVAL_FATAL_ERROR);
 		}
+		ret = sqlite3_open(":memory:", &volatile_db);
+		if( ret ){
+			fprintf(stderr, "Can't open memory database: %s\n", sqlite3_errmsg(volatile_db));
+			sqlite3_close(volatile_db);
+			exit(RETVAL_FATAL_ERROR);
+		}
 
 		HandleScope handle_scope;
 		Handle<ObjectTemplate> global = ObjectTemplate::New();
@@ -327,6 +337,7 @@ public:
 
 		context.Dispose();
 		sqlite3_close(db);
+		sqlite3_close(volatile_db);
 		return 0;
 	}
 };
