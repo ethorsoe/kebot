@@ -9,6 +9,20 @@ var nickerrre = /\S+ 433 * ([^:]+):.*/
 
 var lines = x.split("\n")
 
+/*
+ * Auxiliary functions.
+ */
+
+function join(channel) {
+	return "JOIN " + channel + "\n"
+}
+function op(channel, user) {
+	return "MODE " + channel + " +o " + user + "\n"
+}
+function msg(whom, what) {
+	return "PRIVMSG "+whom+" :"+what+"\n"
+}
+
 function getDBValue() {
 	var input = "PRAGMA SQLITE_TEMP_STORE=3; select data from '" + arguments[0] + "' where "
 	var inputs = new Array(arguments.length - 1)
@@ -55,10 +69,10 @@ function cmdevent(command, parameters, who, context){
 		return ""
 
 	if ("join" == command)
-		return 'JOIN ' + parameters + '\n';
+		return join(parameters)
 	if ("say" == command) {
 		var targets = saytoken.exec(parameters)
-		return "PRIVMSG "+targets[1]+" :"+ targets[2] +"\n"
+		return msg(targets[1],targets[2])
 	}
 	if ("reload" == command)
 		exit(4)
@@ -90,7 +104,7 @@ function getHosts(host) {
 function joinevent(who, where) {
 	var hostmask = hostmaskre.exec(who)
 	if (hostmask && getDBValue("op."+where, ["ident", hostmask[2]], ["host"].concat(getHosts(hostmask[3]))) == "yes") {
-		return "MODE " + where + " +o " + hostmask[1] + "\n"
+		return op(where,hostmask[1])
 	}
 	return ''
 }
