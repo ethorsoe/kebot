@@ -148,10 +148,12 @@ function f(b){
 		if (timer) {
 			retval += "PRIVMSG " + timer[1] + " :" + timer[2] + "\n"
 			script_retval = false
+			continue
 		}
 		if ("INIT" == b[i]) {
 			retval += "USER " + getDBValue("conf", "ident") + " * * :" + getDBValue("conf","realname") + "\n"
 			retval += "NICK " + getDBValue("conf", "nick") + "\n"
+			continue
 		}
 		var numeric = numericre.exec(b[i])
 		if (numeric) {
