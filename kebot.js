@@ -25,13 +25,19 @@ function msg(whom, what) {
 
 function getDBValue() {
 	var input = "PRAGMA SQLITE_TEMP_STORE=3; select data from '" + arguments[0] + "' where "
-	var inputs = new Array(arguments.length - 1)
+	var init_i = 1
+	var is_volatile = false
+	if (typeof(arguments[1]) == "boolean") {
+		is_volatile = arguments[1]
+		init_i = 2
+	}
+	var inputs = new Array(arguments.length - init_i)
 
 	function escapes(s) {
 		return s.replace(/'/g,"''")
 	}
 
-	for (i=1; i < arguments.length; i++) {
+	for (i=init_i; i < arguments.length; i++) {
 		var key = " key == "
 		var thisarg=arguments[i]
 		if (Array.isArray(thisarg)) {
@@ -40,19 +46,19 @@ function getDBValue() {
 				for (j=1;j<thisarg.length;j++) {
 					thisarray[j-1]=escapes(thisarg[j])
 				}
-				inputs[i-1] = "" + thisarg[0] + " IN ('" + thisarray.join("','") + "')"
+				inputs[i-init_i] = "" + thisarg[0] + " IN ('" + thisarray.join("','") + "')"
 			}
 			else {
-				inputs[i-1] = "" + thisarg[0] + " == '" + escapes(thisarg[1]) + "'"
+				inputs[i-init_i] = "" + thisarg[0] + " == '" + escapes(thisarg[1]) + "'"
 			}
 		}
 		else {
-			inputs[i-1] = "key == '" + escapes(thisarg) + "'"
+			inputs[i-init_i] = "key == '" + escapes(thisarg) + "'"
 		}
 	}
 	input += inputs.join(" AND ")
 	input += ";"
-	return cppGetDBValue(input);
+	return cppGetDBValue(input, is_volatile);
 }
 
 function cmdevent(command, parameters, who, context){
