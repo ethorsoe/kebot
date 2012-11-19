@@ -8,6 +8,8 @@
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/prctl.h>
 
 #include <cstdio>
 #include <cstring>
@@ -210,8 +212,11 @@ int sandboxme(){
 		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(poll), 0);
 	if (!ret)
 		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(mmap), 0);
+		//ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(mmap), 1, SCMP_A0(SCMP_CMP_NE, 0));
+	//if (!ret)
+		//ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(mmap), 1, SCMP_A3(SCMP_CMP_MASKED_EQ, MAP_FIXED, 0));
 	if (!ret)
-		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(clone), 0);
+		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(clone), 1, SCMP_A0(SCMP_CMP_EQ, (CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_THREAD|CLONE_SYSVSEM|CLONE_SETTLS|CLONE_PARENT_SETTID|CLONE_CHILD_CLEARTID)));
 	if (!ret)
 		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(brk), 0);
 	if (!ret)
@@ -231,7 +236,7 @@ int sandboxme(){
 	if (!ret)
 		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(exit_group), 0);
 	if (!ret)
-		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(prctl), 0);
+		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(prctl), 1, SCMP_A0(SCMP_CMP_EQ, PR_SET_NAME));
 	if (!ret)
 		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(lseek), 0);
 	if (!ret)
