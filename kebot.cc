@@ -134,7 +134,7 @@ gboolean glib_callback(GIOChannel *source, GIOCondition, gpointer ptr)
 	Handle<Value> result = (*scriptp)->Run();
 
 	String::AsciiValue ascii(result);
-	printf("ascii:\n%s", *ascii);
+	printf("ascii:\n%sendascii\n", *ascii);
 	writes(s, *ascii);
 
 	return script_retval;
