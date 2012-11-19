@@ -118,8 +118,18 @@ function joinevent(who, where) {
 	return ''
 }
 
+function connectevent() {
+	var channels = getDBValue("conf", "channels").split(" ")
+	var retval = ""
+	for (i in channels)
+		retval += join(channels[i])
+	return retval
+}
+
 function numericevent(number) {
 	switch (Number(number)) {
+	case 1:
+		return connectevent()
 	case 433:
 		return nick(getDBValue("conf", "altnick"))
 	}
