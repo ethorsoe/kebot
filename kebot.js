@@ -22,6 +22,9 @@ function op(channel, user) {
 function msg(whom, what) {
 	return "PRIVMSG "+whom+" :"+what+"\n"
 }
+function nick(newnick){
+	return "NICK " + newnick + "\n"
+}
 
 function getDBValue() {
 	var input = "PRAGMA SQLITE_TEMP_STORE=3; select data from '" + arguments[0] + "' where "
@@ -118,7 +121,7 @@ function joinevent(who, where) {
 function numericevent(number) {
 	switch (Number(number)) {
 	case 433:
-		return "NICK " + getDBValue("conf", "altnick") + "\n"
+		return nick(getDBValue("conf", "altnick"))
 	}
 	return ""
 }
