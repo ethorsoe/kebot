@@ -125,10 +125,16 @@ function getHosts(host) {
 
 function joinevent(who, where) {
 	var hostmask = hostmaskre.exec(who)
-	if (hostmask && getDBValue("op."+where, ["ident", hostmask[2]], ["host"].concat(getHosts(hostmask[3]))) == "yes") {
-		return op(where,hostmask[1])
+	if (hostmask) {
+		if (getDBValue("op."+where, ["ident", hostmask[2]], ["host"].concat(getHosts(hostmask[3]))) == "yes") {
+			return op(where,hostmask[1])
+		}
+		var mynick = getDBValue("state",true,"nick")
+		if (hostmask[1] == mynick) {
+			log("I joined " + where)
+		}
 	}
-	return ''
+	return ""
 }
 
 function connectevent() {
@@ -144,7 +150,9 @@ function numericevent(number) {
 	case 1:
 		return connectevent()
 	case 433:
-		return nick(getDBValue("conf", "altnick"))
+		var mynick = getDBValue("conf", "altnick")
+		setDBValue("state","nick", mynick)
+		return nick(mynick)
 	}
 	return ""
 }
@@ -174,8 +182,11 @@ function f(b){
 			continue
 		}
 		if ("INIT" == b[i]) {
+			var mynick = getDBValue("conf", "nick")
+			cppGetDBValue("create table state (key TEXT, data TEXT);", true);
+			setDBValue("state","nick", mynick)
 			retval += "USER " + getDBValue("conf", "ident") + " * * :" + getDBValue("conf","realname") + "\n"
-			retval += "NICK " + getDBValue("conf", "nick") + "\n"
+			retval += nick(mynick)
 			continue
 		}
 		var numeric = numericre.exec(b[i])
