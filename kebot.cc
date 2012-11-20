@@ -268,19 +268,23 @@ public:
 	IrcSession() {}
 	IrcSession(std::string thisnetwork, std::string thisident,
 	           std::string thisnick, std::vector<std::string> thisserv):
-	           network(thisnetwork),ident(thisident),nick(thisnick), servers(thisserv){ }
+	           network(thisnetwork),ident(thisident),nick(thisnick), servers(thisserv){
+		servind=0;
+	}
 	std::string network;
 	std::string ident;
 	std::string nick;
 	std::vector<std::string> servers;
 	pid_t pid;
-	int sock;
+	int sock, servind;
 
 	int connect(){
 		for (unsigned i=0; servers.size() > i; i++) {
-			sock = open_irc_connection(servers[i].c_str());
-			if (0 < sock)
+			sock = open_irc_connection(servers[(i+servind)%servers.size()].c_str());
+			if (0 < sock) {
+				servind=(i+servind+1)%servers.size();
 				return 0;
+			}
 		}
 		return -1;
 	}
