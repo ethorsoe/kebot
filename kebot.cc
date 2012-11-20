@@ -177,17 +177,22 @@ int open_irc_connection(const char *server) {
 	if ((ret = getaddrinfo(server, "6667",&hints,&servinfo)) != 0)
 	{
 		fprintf(stderr,"getaddrinfo: %s\n", gai_strerror(ret));
+		return -1;
 	}
 
 	if ((sock = socket(servinfo->ai_family,servinfo->ai_socktype,servinfo->ai_protocol)) == -1)
 	{
 		perror("client: socket");
+		freeaddrinfo(servinfo);
+		return -1;
 	}
 	if (connect(sock,servinfo->ai_addr, servinfo->ai_addrlen) == -1)
 	{
 		close (sock);
 		sock=-1;
 		perror("Client Connect");
+		freeaddrinfo(servinfo);
+		return -1;
 	}
 	freeaddrinfo(servinfo);
 	return sock;
