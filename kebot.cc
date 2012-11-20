@@ -16,6 +16,8 @@
 #include <cstdlib>
 #include <string>
 #include <map>
+#include <vector>
+#include <iostream>
 
 #include <sqlite3.h>
 #include <seccomp.h>
@@ -41,6 +43,7 @@ int s, timeout_counter = 0;
 typedef enum {
 	RETVAL_EXIT,
 	RETVAL_DISCONNECT,
+	RETVAL_NOCONNECT,
 	RETVAL_ERROR,
 	RETVAL_FATAL_ERROR,
 	RETVAL_RELOAD}
@@ -259,22 +262,22 @@ class IrcSession {
 public:
 	IrcSession() {}
 	IrcSession(std::string thisnetwork, std::string thisident,
-	           std::string thisnick):
-	           network(thisnetwork),ident(thisident),nick(thisnick) { }
-	std::string server;
+	           std::string thisnick, std::vector<std::string> thisserv):
+	           network(thisnetwork),ident(thisident),nick(thisnick), servers(thisserv){ }
 	std::string network;
 	std::string ident;
 	std::string nick;
+	std::vector<std::string> servers;
 	pid_t pid;
 	int sock;
 
-	int connect(std::string thisserver){
-		server=thisserver;
-		sock = open_irc_connection(server.c_str());
-
-		if (0 > sock)
-			return -1;
-		return 0;
+	int connect(){
+		for (unsigned i=0; servers.size() > i; i++) {
+			sock = open_irc_connection(servers[i].c_str());
+			if (0 < sock)
+				return 0;
+		}
+		return -1;
 	}
 
 	pid_t run_session() {
@@ -374,19 +377,24 @@ int main(int argc, char *argv[])
 	for (int i=0; i<count; i++) {
 		const libconfig::Setting &net = networks[i];
 
-		std::string network, nick, ident, server;
+		std::string network, nick, ident;
 
 		if (!(net.lookupValue("network", network)
 		     && net.lookupValue("nick", nick)
 		     && net.lookupValue("ident", ident)
-		     && net.lookupValue("server", server)
 		))
 			exit(1);
 
-		IrcSession session(network,ident,nick);
-		int retval = session.connect(server);
-		if (!retval)
-			sessions[session.run_session()] = session;
+		libconfig::Setting &servers = net["servers"];
+		int nserv = servers.getLength();
+		std::vector<std::string> servec(0);
+		for (int j=0; j<nserv;j++){
+			servec.push_back(servers[j]);
+		}
+
+		IrcSession session(network,ident,nick,servec);
+		session.connect();
+		sessions[session.run_session()] = session;
 	}
 	while (1) {
 		int status;
@@ -406,14 +414,14 @@ int main(int argc, char *argv[])
 			continue;
 		printf ("pid %d exit with %d\n", pid, childret);
 
-		if (RETVAL_EXIT == childret)
+		if (RETVAL_EXIT == childret || RETVAL_FATAL_ERROR == childret)
 			continue;
 
 		IrcSession session = sessions[pid];
 		sessions.erase(pid);
 		if (RETVAL_DISCONNECT == childret) {
 			close(session.sock);
-			int retval = session.connect(session.server);
+			int retval = session.connect();
 			if (0 > retval)
 				continue;
 		}
