@@ -98,6 +98,8 @@ function cmdevent(command, parameters, who, context){
 	}
 	if ("reload" == command)
 		exit("RELOAD")
+	if ("die" == command)
+		exit("EXIT")
 	return "";
 }
 
