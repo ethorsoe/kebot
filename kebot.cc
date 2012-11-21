@@ -422,6 +422,10 @@ int main(int argc, char *argv[])
 	while (1) {
 		int status;
 		pid_t pid = wait(&status);
+		if (-1 == pid) {
+			printf("No more chilrden left, exiting\n");
+			break;
+		}
 		SessionRetVal childret = RETVAL_EXIT;
 
 		if (WIFEXITED(status)) {
