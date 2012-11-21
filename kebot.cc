@@ -303,7 +303,7 @@ public:
 		return -1;
 	}
 
-	pid_t run_session() {
+	pid_t run_session(bool connect) {
 		int ret;
 
 		if ((pid = fork()))
@@ -362,7 +362,8 @@ public:
 		Handle<Script> script = Script::Compile(sourcehandle);
 		scriptp = &script;
 
-		glib_callback(NULL,G_IO_NVAL,(gpointer)strdup("INIT\n"));
+		if (connect)
+			glib_callback(NULL,G_IO_NVAL,(gpointer)strdup("INIT\n"));
 		g_timeout_add_seconds (60, ping_timeout_callback, 0);
 		g_main_loop_run(main_loop);
 
@@ -417,7 +418,7 @@ int main(int argc, char *argv[])
 
 		IrcSession session(network,ident,nick,servec);
 		session.connect();
-		sessions[session.run_session()] = session;
+		sessions[session.run_session(true)] = session;
 	}
 	pid_t prevpid = -1;
 	while (1) {
@@ -448,17 +449,17 @@ int main(int argc, char *argv[])
 		if (RETVAL_EXIT == childret || RETVAL_FATAL_ERROR == childret)
 			continue;
 
+		bool connect = false;
 		IrcSession session = sessions[pid];
 		sessions.erase(pid);
 		if (RETVAL_DISCONNECT == childret) {
 			close(session.sock);
-			int retval = session.connect();
-			if (0 > retval)
-				continue;
+			session.connect();
+			connect=true;
 		}
 		if (RETVAL_RELOAD == childret)
 			load_source();
-		pid_t newpid = session.run_session();
+		pid_t newpid = session.run_session(connect);
 		sessions[newpid] = session;
 		prevpid = newpid;
 	}
