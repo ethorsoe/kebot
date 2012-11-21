@@ -419,6 +419,7 @@ int main(int argc, char *argv[])
 		session.connect();
 		sessions[session.run_session()] = session;
 	}
+	pid_t prevpid = -1;
 	while (1) {
 		int status;
 		pid_t pid = wait(&status);
@@ -426,6 +427,9 @@ int main(int argc, char *argv[])
 			printf("No more chilrden left, exiting\n");
 			break;
 		}
+		if (prevpid == pid)
+			sleep(60);
+
 		SessionRetVal childret = RETVAL_EXIT;
 
 		if (WIFEXITED(status)) {
@@ -456,6 +460,7 @@ int main(int argc, char *argv[])
 			load_source();
 		pid_t newpid = session.run_session();
 		sessions[newpid] = session;
+		prevpid = newpid;
 	}
 }
 
