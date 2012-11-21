@@ -97,7 +97,7 @@ function cmdevent(command, parameters, who, context){
 		return msg(targets[1],targets[2])
 	}
 	if ("reload" == command)
-		exit(5)
+		exit("RELOAD")
 	return "";
 }
 

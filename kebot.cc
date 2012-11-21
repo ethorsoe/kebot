@@ -70,9 +70,23 @@ void XSetter(Local<String>, Local<Value>, const AccessorInfo&) {
 }
 
 static Handle<Value> ExitCallback(const Arguments& args) {
-	if (args.Length() != 1) return v8::Undefined();
-	int exitval = args[0]->Int32Value();
-	printf("EXIT by clientscript %d\n", exitval);
+	if (args.Length() != 1) {
+		printf("exit called incorrectly \n");
+		exit(RETVAL_FATAL_ERROR);
+	}
+	int exitval = RETVAL_FATAL_ERROR;
+	String::Utf8Value strparam(args[0]);
+	printf("EXIT by clientscript %s\n", *strparam);
+	if      (!strcmp("EXIT"        , *strparam)) exitval = RETVAL_EXIT;
+	else if (!strcmp("DISCONNECT"  , *strparam)) exitval = RETVAL_DISCONNECT;
+	else if (!strcmp("NOCONNECT"   , *strparam)) exitval = RETVAL_NOCONNECT;
+	else if (!strcmp("ERROR"       , *strparam)) exitval = RETVAL_ERROR;
+	else if (!strcmp("FATAL_ERROR" , *strparam)) exitval = RETVAL_FATAL_ERROR;
+	else if (!strcmp("RELOAD"      , *strparam)) exitval = RETVAL_RELOAD;
+	else {
+		printf("Unknown exit value: %s\n", *strparam);
+	}
+	printf("%d\n", exitval);
 	exit(exitval);
 	return v8::Undefined();
 }
