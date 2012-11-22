@@ -177,7 +177,7 @@ function f(b){
 		}
 		var join = joinre.exec(b[i])
 		if (join) {
-			retval += joinevent(join[1],join[2])
+			retval += joinevent(join[1],join[2].toLowerCase())
 			continue
 		}
 		var timer = timerre.exec(b[i])
