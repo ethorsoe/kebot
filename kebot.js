@@ -117,8 +117,8 @@ function msgevent(who,whom,message){
 function getHosts(host) {
 	var hosts = host.split('.')
 
-	var table = new Array(hosts.length-1)
-	for (i=0;i<hosts.length-1;i++) {
+	var table = new Array(hosts.length)
+	for (i=0;i<hosts.length;i++) {
 		table[i]=hosts.slice(i).join(".")
 	}
 
