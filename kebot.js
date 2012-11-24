@@ -103,7 +103,15 @@ function helpCmd(parameters, who, hostmask, context) {
 		return msg(context, commands[cmd].help)
 	if (privCommands[cmd])
 		return msg(context, privCommands[cmd].help)
-	return msg(context, "No help for command " + cmd + "\n")
+
+	var cmds = new Array
+	var i = 0
+	for (var prop in commands)
+		cmds[i++]=prop
+	for (var prop in privCommands)
+		cmds[i++]=prop
+
+	return  msg(context, "Available commands: " + cmds.join(" "))
 }
 function sayCmd(parameters, who, hostmask, context) {
 	var targets = saytoken.exec(parameters)
@@ -120,7 +128,7 @@ function dieCmd(parameters, who, hostmask, context) {
 	exit("EXIT")
 }
 commands["timer"]         =addCommand(timerCmd,"timer <time in secs> <message>, send a <message> to me in this context\n")
-commands["help"]          =addCommand(helpCmd,"help <cmd>, print help for <cmd>\n")
+commands["help"]          =addCommand(helpCmd,"help <cmd>, print help for <cmd>; help, list all commands\n")
 privCommands["say"]       =addCommand(sayCmd,"say <whom> <what>, send a message <what> to <whom>\n")
 privCommands["join"]      =addCommand(joinCmd,"join <#channel>, join channel\n")
 privCommands["reload"]    =addCommand(reloadCmd,"Reload client script\n")
