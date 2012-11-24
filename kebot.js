@@ -90,14 +90,14 @@ function addCommand(f, h) {
 	return retval
 }
 
-function timerCmd(parameters, who, context) {
+function timerCmd(parameters, who, hostmask, context) {
 	var timers = / *([0-9]+) *(.*)/.exec(parameters)
 	if (timers) {
 		cppSetTimer(timers[1], "KEBOTCMD TIMER "+context+" " + who + ": " + timers[2]) + "\n"
 		return ""
 	}
 }
-function helpCmd(parameters, who, context) {
+function helpCmd(parameters, who, hostmask, context) {
 	var cmd = parameters.trim()
 	if (commands[cmd])
 		return msg(context, commands[cmd].help)
@@ -105,18 +105,18 @@ function helpCmd(parameters, who, context) {
 		return msg(context, privCommands[cmd].help)
 	return msg(context, "No help for command " + cmd + "\n")
 }
-function sayCmd(parameters, who, context) {
+function sayCmd(parameters, who, hostmask, context) {
 	var targets = saytoken.exec(parameters)
 	if (targets)
 		return msg(targets[1],targets[2])
 }
-function joinCmd(parameters, who, context) {
+function joinCmd(parameters, who, hostmask, context) {
 	return join(parameters)
 }
-function reloadCmd(parameters, who, context) {
+function reloadCmd(parameters, who, hostmask, context) {
 	exit("RELOAD")
 }
-function dieCmd(parameters, who, context) {
+function dieCmd(parameters, who, hostmask, context) {
 	exit("EXIT")
 }
 commands["timer"]         =addCommand(timerCmd,"timer <time in secs> <message>, send a <message> to me in this context\n")
@@ -129,16 +129,18 @@ privCommands["die"]       =addCommand(dieCmd,"Exit IRC session permanently\n")
 function cmdevent(command, parameters, who, context){
 	if (typeof(parameters) == "undefined")
 		parameters = ""
+	var hostmask = hostmaskre.exec(who)
+	if (!hostmask)
+		return ""
 
 	if (commands[command])
-		return commands[command].func(parameters,who,context)
+		return commands[command].func(parameters, hostmask[1], hostmask, context)
 
-	var hostmask = hostmaskre.exec(who)
-	if (!hostmask || getDBValue("master", ["ident", hostmask[2]], ["host"].concat(getHosts(hostmask[3]))) != 'yes')
+	if (getDBValue("master", ["ident", hostmask[2]], ["host"].concat(getHosts(hostmask[3]))) != 'yes')
 		return ""
 
 	if (privCommands[command])
-		return privCommands[command].func(parameters,who,context)
+		return privCommands[command].func(parameters, hostmask[1], hostmask, context)
 
 	return "";
 }
