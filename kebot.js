@@ -77,29 +77,69 @@ function getDBValue() {
 	return cppGetDBValue(input, is_volatile);
 }
 
-function cmdevent(command, parameters, who, context){
-	if ("timer" == command) {
-		var timers = / *([0-9]+) *(.*)/.exec(parameters)
-		if (timers) {
-			cppSetTimer(timers[1], "KEBOTCMD TIMER "+context+" " + timers[2]) + "\n"
-			return ""
-		}
+/*
+ * Command handling code
+ */
+var commands = {}
+var privCommands = {}
+
+function addCommand(f, h) {
+	var retval = new Object
+	retval.help = h
+	retval.func = f
+	return retval
+}
+
+function timerCmd(parameters, who, context) {
+	var timers = / *([0-9]+) *(.*)/.exec(parameters)
+	if (timers) {
+		cppSetTimer(timers[1], "KEBOTCMD TIMER "+context+" " + who + ": " + timers[2]) + "\n"
+		return ""
 	}
+}
+function helpCmd(parameters, who, context) {
+	var cmd = parameters.trim()
+	if (commands[cmd])
+		return msg(context, commands[cmd].help)
+	if (privCommands[cmd])
+		return msg(context, privCommands[cmd].help)
+	return msg(context, "No help for command " + cmd + "\n")
+}
+function sayCmd(parameters, who, context) {
+	var targets = saytoken.exec(parameters)
+	if (targets)
+		return msg(targets[1],targets[2])
+}
+function joinCmd(parameters, who, context) {
+	return join(parameters)
+}
+function reloadCmd(parameters, who, context) {
+	exit("RELOAD")
+}
+function dieCmd(parameters, who, context) {
+	exit("EXIT")
+}
+commands["timer"]         =addCommand(timerCmd,"timer <time in secs> <message>, send a <message> to me in this context\n")
+commands["help"]          =addCommand(helpCmd,"help <cmd>, print help for <cmd>\n")
+privCommands["say"]       =addCommand(sayCmd,"say <whom> <what>, send a message <what> to <whom>\n")
+privCommands["join"]      =addCommand(joinCmd,"join <#channel>, join channel\n")
+privCommands["reload"]    =addCommand(reloadCmd,"Reload client script\n")
+privCommands["die"]       =addCommand(dieCmd,"Exit IRC session permanently\n")
+
+function cmdevent(command, parameters, who, context){
+	if (typeof(parameters) == "undefined")
+		parameters = ""
+
+	if (commands[command])
+		return commands[command].func(parameters,who,context)
 
 	var hostmask = hostmaskre.exec(who)
-	if (getDBValue("master", ["ident", hostmask[2]], ["host"].concat(getHosts(hostmask[3]))) != 'yes')
+	if (!hostmask || getDBValue("master", ["ident", hostmask[2]], ["host"].concat(getHosts(hostmask[3]))) != 'yes')
 		return ""
 
-	if ("join" == command)
-		return join(parameters)
-	if ("say" == command) {
-		var targets = saytoken.exec(parameters)
-		return msg(targets[1],targets[2])
-	}
-	if ("reload" == command)
-		exit("RELOAD")
-	if ("die" == command)
-		exit("EXIT")
+	if (privCommands[command])
+		return privCommands[command].func(parameters,who,context)
+
 	return "";
 }
 
