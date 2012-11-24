@@ -164,7 +164,7 @@ gboolean timer_callback(gpointer userdata) {
 }
 
 gboolean ping_timeout_callback(gpointer) {
-	if (4 < ++timeout_counter)
+	if (7 < ++timeout_counter)
 		exit(RETVAL_DISCONNECT);
 	return TRUE;
 }
