@@ -6,6 +6,7 @@ var saytoken = /(\S+) (.*)/
 var hostmaskre = /([^!@ ]+)!([^!@ ]+)@([^!@ ]+)/
 var timerre = /KEBOTCMD TIMER (\S+) +(.+)/
 var numericre = /\S+ ([0-9]+) \S+ .*/
+var nickre = /:(\S+) NICK :(\S+)/
 
 var lines = x.split("\n")
 
@@ -30,7 +31,7 @@ function escapesqls(s) {
 	return s.replace(/'/g,"''")
 }
 function setDBValue() {
-	var input = "PRAGMA SQLITE_TEMP_STORE=3; insert into '" + arguments[0] + "' values('"
+	var input = "PRAGMA SQLITE_TEMP_STORE=3; replace into '" + arguments[0] + "' values('"
 	var init_i = 1
 	var is_volatile = true
 	var inputs = new Array(arguments.length - init_i)
@@ -127,12 +128,16 @@ function reloadCmd(parameters, who, hostmask, context) {
 function dieCmd(parameters, who, hostmask, context) {
 	exit("EXIT")
 }
+function nickCmd(parameters, who, hostmask, context) {
+	return nick(parameters)
+}
 commands["timer"]         =addCommand(timerCmd,"timer <time in secs> <message>, send a <message> to me in this context\n")
 commands["help"]          =addCommand(helpCmd,"help <cmd>, print help for <cmd>; help, list all commands\n")
 privCommands["say"]       =addCommand(sayCmd,"say <whom> <what>, send a message <what> to <whom>\n")
 privCommands["join"]      =addCommand(joinCmd,"join <#channel>, join channel\n")
 privCommands["reload"]    =addCommand(reloadCmd,"Reload client script\n")
 privCommands["die"]       =addCommand(dieCmd,"Exit IRC session permanently\n")
+privCommands["nick"]      =addCommand(nickCmd,"nick <newnick>, change nick to newnick\n")
 
 function cmdevent(command, parameters, who, context){
 	if (typeof(parameters) == "undefined")
@@ -175,6 +180,18 @@ function getHosts(host) {
 	return table
 }
 
+function nickevent(who, newnick) {
+	var hostmask = hostmaskre.exec(who)
+	if (hostmask) {
+		if (getDBValue("state", true, "nick") == hostmask[1]) {
+			setDBValue("state", "nick", newnick)
+			log("Nick changed to " + getDBValue("state", true, "nick"))
+			return ""
+		}
+	}
+	return ""
+}
+
 function myjoinevent(where) {
 	return getDBValue("joinaction",where)
 }
@@ -197,6 +214,7 @@ function connectevent() {
 	var retval = ""
 	for (i in channels)
 		retval += join(channels[i])
+	setDBValue("state", "connected", "yes")
 	return retval
 }
 
@@ -205,9 +223,13 @@ function numericevent(number) {
 	case 1:
 		return connectevent()
 	case 433:
-		var mynick = getDBValue("conf", "altnick")
-		setDBValue("state","nick", mynick)
-		return nick(mynick)
+		if ("yes" != getDBValue("state", true, "connected")) {
+			var mynick = getDBValue("conf", "altnick")
+			setDBValue("state", "nick", mynick)
+			return nick(mynick)
+		}
+		return ""
+
 	}
 	return ""
 }
@@ -236,9 +258,14 @@ function f(b){
 			script_retval = false
 			continue
 		}
+		var nickchg = nickre.exec(b[i])
+		if (nickchg) {
+			retval += nickevent(nickchg[1], nickchg[2])
+			continue
+		}
 		if ("INIT" == b[i]) {
 			var mynick = getDBValue("conf", "nick")
-			cppGetDBValue("create table state (key TEXT, data TEXT);", true);
+			cppGetDBValue("create table state (key TEXT, data TEXT, unique(key));", true);
 			setDBValue("state","nick", mynick)
 			retval += "USER " + getDBValue("conf", "ident") + " * * :" + getDBValue("conf","realname") + "\n"
 			retval += nick(mynick)
