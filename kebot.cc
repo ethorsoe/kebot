@@ -218,61 +218,64 @@ int sandboxme(){
 	int ret = 0;
 #ifndef NOSECCOMP
 	printf("Entering seccomp sandbox now\n");
-	ret = seccomp_init(SCMP_ACT_KILL);
-	if (ret < 0)
+	scmp_filter_ctx ctx = seccomp_init(SCMP_ACT_KILL);
+	if (!ctx) {
 		printf("Error from seccomp_init\n");
-	ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(read), 0);
+		ret=-1;
+	}
 	if (!ret)
-		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(pread64), 0);
+		ret = seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(read), 0);
 	if (!ret)
-		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(write), 0);
+		ret = seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(pread64), 0);
 	if (!ret)
-		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(pwrite64), 0);
+		ret = seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(write), 0);
 	if (!ret)
-		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(fstat), 0);
+		ret = seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(pwrite64), 0);
 	if (!ret)
-		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(exit), 0);
+		ret = seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(fstat), 0);
 	if (!ret)
-		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(poll), 0);
+		ret = seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(exit), 0);
 	if (!ret)
-		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(mmap), 0);
-		//ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(mmap), 1, SCMP_A0(SCMP_CMP_NE, 0));
+		ret = seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(poll), 0);
+	if (!ret)
+		ret = seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(mmap), 0);
+		//ret = seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(mmap), 1, SCMP_A0(SCMP_CMP_NE, 0));
 	//if (!ret)
-		//ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(mmap), 1, SCMP_A3(SCMP_CMP_MASKED_EQ, MAP_FIXED, 0));
+		//ret = seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(mmap), 1, SCMP_A3(SCMP_CMP_MASKED_EQ, MAP_FIXED, 0));
 	if (!ret)
-		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(clone), 1, SCMP_A0(SCMP_CMP_EQ, (CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_THREAD|CLONE_SYSVSEM|CLONE_SETTLS|CLONE_PARENT_SETTID|CLONE_CHILD_CLEARTID)));
+		ret = seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(clone), 1, SCMP_A0(SCMP_CMP_EQ, (CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_THREAD|CLONE_SYSVSEM|CLONE_SETTLS|CLONE_PARENT_SETTID|CLONE_CHILD_CLEARTID)));
 	if (!ret)
-		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(brk), 0);
+		ret = seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(brk), 0);
 	if (!ret)
-		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(mprotect), 0);
+		ret = seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(mprotect), 0);
 	if (!ret)
-		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(futex), 0);
+		ret = seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(futex), 0);
 	if (!ret)
-		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(nanosleep), 0);
+		ret = seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(nanosleep), 0);
 	if (!ret)
-		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(munmap), 0);
+		ret = seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(munmap), 0);
 	if (!ret)
-		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(gettid), 0);
+		ret = seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(gettid), 0);
 	if (!ret)
-		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(set_robust_list), 0);
+		ret = seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(set_robust_list), 0);
 	if (!ret)
-		ret = seccomp_rule_add(SCMP_ACT_ERRNO(5), SCMP_SYS(open), 0);
+		ret = seccomp_rule_add(ctx, SCMP_ACT_ERRNO(5), SCMP_SYS(open), 0);
 	if (!ret)
-		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(exit_group), 0);
+		ret = seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(exit_group), 0);
 	if (!ret)
-		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(prctl), 1, SCMP_A0(SCMP_CMP_EQ, PR_SET_NAME));
+		ret = seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(prctl), 1, SCMP_A0(SCMP_CMP_EQ, PR_SET_NAME));
 	if (!ret)
-		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(lseek), 0);
+		ret = seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(lseek), 0);
 	if (!ret)
-		ret = seccomp_rule_add(SCMP_ACT_ERRNO(5), SCMP_SYS(access), 0);
+		ret = seccomp_rule_add(ctx, SCMP_ACT_ERRNO(5), SCMP_SYS(access), 0);
 	if (!ret)
-		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(ftruncate), 0);
+		ret = seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(ftruncate), 0);
 	if (!ret)
-		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(fsync), 0);
+		ret = seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(fsync), 0);
 	if (!ret)
-		ret = seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(close), 0);
+		ret = seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(close), 0);
 	if (!ret)
-		ret = seccomp_load();
+		ret = seccomp_load(ctx);
 #else
 	printf("Would enter seccomp sandbox now\n");
 #endif
