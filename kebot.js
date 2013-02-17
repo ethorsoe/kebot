@@ -20,7 +20,7 @@ function join(channel) {
 function op(channel, user) {
 	return "MODE " + channel + " +o " + user + "\n"
 }
-function msg(whom, what) {
+function privmsg(whom, what) {
 	return "PRIVMSG "+whom+" :"+what+"\n"
 }
 function nick(newnick){
@@ -101,9 +101,9 @@ function timerCmd(parameters, who, hostmask, context) {
 function helpCmd(parameters, who, hostmask, context) {
 	var cmd = parameters.trim()
 	if (commands[cmd])
-		return msg(context, commands[cmd].help)
+		return privmsg(context, commands[cmd].help)
 	if (privCommands[cmd])
-		return msg(context, privCommands[cmd].help)
+		return privmsg(context, privCommands[cmd].help)
 
 	var cmds = new Array
 	var i = 0
@@ -112,12 +112,12 @@ function helpCmd(parameters, who, hostmask, context) {
 	for (var prop in privCommands)
 		cmds[i++]=prop
 
-	return  msg(context, "Available commands: " + cmds.join(" "))
+	return  privmsg(context, "Available commands: " + cmds.join(" "))
 }
 function sayCmd(parameters, who, hostmask, context) {
 	var targets = saytoken.exec(parameters)
 	if (targets)
-		return msg(targets[1],targets[2])
+		return privmsg(targets[1],targets[2])
 }
 function joinCmd(parameters, who, hostmask, context) {
 	return join(parameters)
@@ -261,6 +261,10 @@ function f(b){
 		var nickchg = nickre.exec(b[i])
 		if (nickchg) {
 			retval += nickevent(nickchg[1], nickchg[2])
+			continue
+		}
+		if ("TIMEOUTSOON" == b[i]) {
+			retval += privmsg(getDBValue("state", true, "nick"), "ping")
 			continue
 		}
 		if ("INIT" == b[i]) {
