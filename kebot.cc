@@ -38,7 +38,7 @@ sqlite3 *db;
 sqlite3 *volatile_db;
 Handle<Script> *scriptp;
 gboolean script_retval;
-int s, timeout_counter = 0;
+int s, timeout_counter = 0, timeout_max = 5;
 
 typedef enum {
 	RETVAL_EXIT,
@@ -133,8 +133,8 @@ int writes(int fd, const char *a) {
 
 gboolean glib_callback(GIOChannel *source, GIOCondition, gpointer ptr)
 {
-	timeout_counter = 0;
 	if (source) {
+		timeout_counter = 0;
 		int numbytes=0;
 		do {
 			if (MAXDATASIZE <= numbytes + 1) exit(1);
@@ -164,8 +164,10 @@ gboolean timer_callback(gpointer userdata) {
 }
 
 gboolean ping_timeout_callback(gpointer) {
-	if (7 < ++timeout_counter)
+	if (timeout_max < ++timeout_counter)
 		exit(RETVAL_DISCONNECT);
+	if (timeout_max == timeout_counter)
+		return glib_callback(NULL,G_IO_NVAL, (gpointer)strdup("TIMEOUTSOON\n"));
 	return TRUE;
 }
 
