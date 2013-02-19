@@ -138,7 +138,12 @@ gboolean glib_callback(GIOChannel *source, GIOCondition, gpointer ptr)
 		int numbytes=0;
 		do {
 			if (MAXDATASIZE <= numbytes + 1) exit(1);
-			numbytes += read(s,buf+numbytes,MAXDATASIZE-1-numbytes);
+			int readbytes = read(s,buf+numbytes,MAXDATASIZE-1-numbytes);
+			if (0 >= readbytes) {
+				printf("Read in glib_callback returned %d\n", readbytes);
+				exit(RETVAL_DISCONNECT);
+			}
+			numbytes += readbytes;
 		}
 		while ('\n' != buf[numbytes-1]);
 		buf[numbytes]='\0';
