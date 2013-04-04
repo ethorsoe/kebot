@@ -1,7 +1,7 @@
 var msgre = /:(\S+) PRIVMSG (\S+) :(.+)/i
 var joinre = /:(\S+) JOIN :(\S+)/i
 var cmdre = /%(\S+)( +\S.+)?/i
-var pingre = /PING( .+)/i
+var pingre = /^PING( .+)/i
 var saytoken = /(\S+) (.*)/
 var hostmaskre = /([^!@ ]+)!([^!@ ]+)@([^!@ ]+)/
 var timerre = /KEBOTCMD TIMER (\S+) +(.+)/
