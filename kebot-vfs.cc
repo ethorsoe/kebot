@@ -29,13 +29,18 @@ static int kebotVfsClose(sqlite3_file *pFile){
 
 static int kebotVfsRead(sqlite3_file *pFile, void *zBuf, int iAmt, sqlite_int64 iOfst) {
 	KebotFile *p = (KebotFile*)pFile;
-	if (pread(p->fd,zBuf,iAmt,iOfst) != iAmt)
-		return SQLITE_IOERR_READ;
-	return SQLITE_OK;
+	int ret;
+	if ((ret=pread(p->fd,zBuf,iAmt,iOfst)) == iAmt)
+		return SQLITE_OK;
+	if (0 <= ret)
+		return SQLITE_IOERR_SHORT_READ;
+	return SQLITE_IOERR_READ;
 }
 
 static int kebotVfsWrite(sqlite3_file *pFile, const void *zBuf,	int iAmt, sqlite_int64 iOfst) {
-	return pwrite(((KebotFile*)pFile)->fd, zBuf, iAmt, iOfst);
+	if (pwrite(((KebotFile*)pFile)->fd, zBuf, iAmt, iOfst) == iAmt)
+		return SQLITE_OK;
+	return SQLITE_IOERR_WRITE;
 }
 
 static int kebotVfsTruncate(sqlite3_file *pFile, sqlite_int64 size){
