@@ -332,7 +332,7 @@ public:
 
 		std::string dbname = network + ".db";
 		sqlite3_vfs_register(&kebotVfs, 1);
-		open_db(dbname.c_str());
+		open_db(dbname.c_str(), 0);
 		close(0);
 
 		GMainLoop *main_loop = g_main_loop_new(NULL, FALSE);

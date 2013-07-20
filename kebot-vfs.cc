@@ -1,24 +1,62 @@
 #include <cstring>
 #include <sys/stat.h>
 #include <sys/file.h>
+#include <errno.h>
 #include <unistd.h>
 #include <ctime>
+#include <cstdlib>
 
 #include <sqlite3.h>
 
 #include "kebot.hh"
 
-int db_fd;
-
 #define MAXPATHNAME 512
+#define MAX_OPEN_FILES 32
 
 typedef struct {
 	sqlite3_file base;
 	int fd;
 } KebotFile;
 
-int open_db(const char *path){
-	return db_fd = open(path,O_RDWR|O_CREAT|O_CLOEXEC, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
+typedef struct {
+	char *path;
+	int fd;
+} file_container;
+
+file_container filetable[MAX_OPEN_FILES];
+int open_files = 0;
+
+int open_db(const char *path, uint32_t flags){
+	int db_fd;
+	if (MAX_OPEN_FILES <= open_files)
+		return ENFILE;
+
+	if (KEBOT_TMPFILE & flags) {
+		char local_db_name[7] = {'X','X','X','X','X','X',0};
+		db_fd=mkstemp(local_db_name);
+		unlink(local_db_name);
+	}
+	else
+		db_fd = open(path,O_RDWR|O_CREAT|O_CLOEXEC, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
+
+	if (0 <= db_fd && path) {
+		filetable[open_files].path=strdup(path);
+		filetable[open_files++].fd=db_fd;
+	}
+	return db_fd;
+}
+int bind_db(const char *path, int db_fd){
+	if (MAX_OPEN_FILES <= open_files)
+		return ENFILE;
+	if (0 > db_fd)
+		return ENOENT;
+	if (!path)
+		return EFAULT;
+	if (0 <= db_fd) {
+		filetable[open_files].path=strdup(path);
+		filetable[open_files++].fd=db_fd;
+	}
+	return db_fd;
 }
 
 static int kebotVfsClose(sqlite3_file *){
@@ -82,7 +120,7 @@ static int kebotVfsDeviceCharacteristics(sqlite3_file*){
 	return 0;
 }
 
-static int kebotVfsOpen(sqlite3_vfs*, const char*, sqlite3_file *pFile, int flags, int *pOutFlags) {
+static int kebotVfsOpen(sqlite3_vfs*, const char* dbname, sqlite3_file *pFile, int flags, int *pOutFlags) {
 	KebotFile *p = (KebotFile*)pFile;
 	static const sqlite3_io_methods kebotVfsIO = {
 		1,	/* iVersion */
@@ -104,11 +142,18 @@ static int kebotVfsOpen(sqlite3_vfs*, const char*, sqlite3_file *pFile, int flag
 		NULL	/* xShmUnmap */
 	};
 
+	memset(p, 0, sizeof(KebotFile));
+	p->fd=-1;
+	for (int i = 0; open_files > i; i++) if (!strcmp(dbname, filetable[i].path)) {
+		p->fd=filetable[i].fd;
+		break;
+	}
+	if (0>p->fd)
+		return SQLITE_CANTOPEN;
+
 	if( pOutFlags ){
 		*pOutFlags = flags;
 	}
-	memset(p, 0, sizeof(KebotFile));
-	p->fd=db_fd;
 	p->base.pMethods = &kebotVfsIO;
 	return SQLITE_OK;
 }
