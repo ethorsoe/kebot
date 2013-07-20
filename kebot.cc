@@ -294,19 +294,24 @@ public:
 	           std::string thisnick, std::vector<std::string> thisserv):
 	           network(thisnetwork),ident(thisident),nick(thisnick), servers(thisserv){
 		servind=0;
+		volatiledb=-1;
 	}
 	std::string network;
 	std::string ident;
 	std::string nick;
 	std::vector<std::string> servers;
 	pid_t pid;
-	int sock, servind;
+	int sock, servind, volatiledb;
 
 	int connect(){
+		if (0 <= volatiledb)
+			close(volatiledb);
+		volatiledb=-1;
 		for (unsigned i=0; servers.size() > i; i++) {
 			sock = open_irc_connection(servers[(i+servind)%servers.size()].c_str());
 			if (0 < sock) {
 				servind=(i+servind+1)%servers.size();
+				volatiledb=open_db(NULL, KEBOT_TMPFILE);
 				return 0;
 			}
 		}
@@ -333,6 +338,8 @@ public:
 		std::string dbname = network + ".db";
 		sqlite3_vfs_register(&kebotVfs, 1);
 		open_db(dbname.c_str(), 0);
+		bind_db("temp", volatiledb);
+		open_db("temp-journal", KEBOT_TMPFILE);
 		close(0);
 
 		GMainLoop *main_loop = g_main_loop_new(NULL, FALSE);
@@ -349,7 +356,7 @@ public:
 			sqlite3_close(db);
 			exit(RETVAL_FATAL_ERROR);
 		}
-		ret = sqlite3_open(":memory:", &volatile_db);
+		ret = sqlite3_open("temp", &volatile_db);
 		if( ret ){
 			fprintf(stderr, "Can't open memory database: %s\n", sqlite3_errmsg(volatile_db));
 			sqlite3_close(volatile_db);
