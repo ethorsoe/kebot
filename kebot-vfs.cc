@@ -21,9 +21,7 @@ int open_db(const char *path){
 	return db_fd = open(path,O_RDWR|O_CREAT|O_CLOEXEC, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
 }
 
-static int kebotVfsClose(sqlite3_file *pFile){
-	KebotFile *p = (KebotFile*)pFile;
-	close(p->fd);
+static int kebotVfsClose(sqlite3_file *){
 	return SQLITE_OK;
 }
 
