@@ -92,11 +92,33 @@ function addCommand(f, h) {
 }
 
 function timerCmd(parameters, who, hostmask, context) {
-	var timers = / *([0-9]+) *(.*)/.exec(parameters)
+	var timers = / *([0-9]{1,5}) +(.*)/.exec(parameters)
+	var message
+	var time
+
 	if (timers) {
-		cppSetTimer(timers[1], "KEBOTCMD TIMER "+context+" " + who + ": " + timers[2]) + "\n"
-		return ""
+		time=timers[1]*60
+		message=timers[2]
 	}
+	else {
+		timers = / *(?:([0-9]{1,3})h)?(?:([0-9]{1,5})m)?(?:([0-9]{1,6})s)? *(.*)/.exec(parameters)
+		if (timers && (timers[1] || timers[2] || timers[3])) {
+			time = 0
+			message=timers[4]
+			for (i=1;4>i;i++) {
+				time*=60
+				if (timers[i])
+					time+=parseInt(timers[i])
+			}
+		}
+	}
+
+	if (time && message) {
+		cppSetTimer(time, "KEBOTCMD TIMER "+context+" " + who + ": " + message + "\n")
+		return privmsg(context, "Timer set for " + time + " seconds\n")
+	}
+	else
+		return privmsg(context, "No parse, or time longer than 200h!")
 }
 function helpCmd(parameters, who, hostmask, context) {
 	var cmd = parameters.trim()
@@ -131,7 +153,7 @@ function dieCmd(parameters, who, hostmask, context) {
 function nickCmd(parameters, who, hostmask, context) {
 	return nick(parameters)
 }
-commands["timer"]         =addCommand(timerCmd,"timer <time in secs> <message>, send a <message> to me in this context\n")
+commands["timer"]         =addCommand(timerCmd,"timer [<hours>h][<minutes>[m]][<seconds>s] <message>, send a <message> to me in this context\n")
 commands["help"]          =addCommand(helpCmd,"help <cmd>, print help for <cmd>; help, list all commands\n")
 privCommands["say"]       =addCommand(sayCmd,"say <whom> <what>, send a message <what> to <whom>\n")
 privCommands["join"]      =addCommand(joinCmd,"join <#channel>, join channel\n")
